@@ -461,17 +461,15 @@ public class ObjectEndpoint extends EndpointBase {
       key = getClientProtocol().headS3Object(bucketName, keyPath);
 
       /*
-        Necessary in order to use buckets with FSO layout.
+        Necessary for directories in buckets with FSO layout.
         Intended for apps which use Hadoop S3A.
         Example of such app is Trino (through Hive connector).
        */
-      if (keyPath.charAt(keyPath.length() - 1) != '/') {
+      if (getBucket(bucketName).getBucketLayout().isFileSystemOptimized() &&
+          key.getDataSize() == 0L &&
+          keyPath.charAt(keyPath.length() - 1) != '/') {
         throw new OMException(ResultCodes.KEY_NOT_FOUND);
       }
-//      if (getBucket(bucketName).getBucketLayout().isFileSystemOptimized() &&
-//          key.getDataSize() == 0L) {
-//        throw new OMException(ResultCodes.KEY_NOT_FOUND);
-//      }
       // TODO: return the specified range bytes of this object.
     } catch (OMException ex) {
       AUDIT.logReadFailure(
