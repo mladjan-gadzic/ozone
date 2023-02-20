@@ -305,7 +305,12 @@ public class ObjectEndpoint extends EndpointBase {
         Intended for apps which use Hadoop S3A.
         Example of such app is Trino (through Hive connector).
        */
-      if (!keyDetails.isFile() && !keyPath.endsWith("/")) {
+      boolean isFsoDirCreationEnabled = ozoneConfiguration
+          .getBoolean(OZONE_S3G_FSO_DIRECTORY_CREATION_ENABLED,
+              OZONE_S3G_FSO_DIRECTORY_CREATION_ENABLED_DEFAULT);
+      if (isFsoDirCreationEnabled &&
+          !keyDetails.isFile() &&
+          !keyPath.endsWith("/")) {
         throw new OMException(ResultCodes.KEY_NOT_FOUND);
       }
 
@@ -459,7 +464,12 @@ public class ObjectEndpoint extends EndpointBase {
         Intended for apps which use Hadoop S3A.
         Example of such app is Trino (through Hive connector).
        */
-      if (!key.isFile() && !keyPath.endsWith("/")) {
+      boolean isFsoDirCreationEnabled = ozoneConfiguration
+          .getBoolean(OZONE_S3G_FSO_DIRECTORY_CREATION_ENABLED,
+              OZONE_S3G_FSO_DIRECTORY_CREATION_ENABLED_DEFAULT);
+      if (isFsoDirCreationEnabled &&
+          !key.isFile() &&
+          !keyPath.endsWith("/")) {
         throw new OMException(ResultCodes.KEY_NOT_FOUND);
       }
       // TODO: return the specified range bytes of this object.
