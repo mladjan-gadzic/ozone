@@ -326,7 +326,8 @@ public class ObjectEndpoint extends EndpointBase {
       boolean isFsoDirCreationEnabled = ozoneConfiguration
           .getBoolean(OZONE_S3G_FSO_DIRECTORY_CREATION_ENABLED,
               OZONE_S3G_FSO_DIRECTORY_CREATION_ENABLED_DEFAULT);
-      if (isFsoDirCreationEnabled &&
+//      if (isFsoDirCreationEnabled &&
+      if (
           !keyDetails.isFile() &&
           !keyPath.endsWith("/")) {
         throw new OMException(ResultCodes.KEY_NOT_FOUND);
@@ -485,7 +486,8 @@ public class ObjectEndpoint extends EndpointBase {
       boolean isFsoDirCreationEnabled = ozoneConfiguration
           .getBoolean(OZONE_S3G_FSO_DIRECTORY_CREATION_ENABLED,
               OZONE_S3G_FSO_DIRECTORY_CREATION_ENABLED_DEFAULT);
-      if (isFsoDirCreationEnabled &&
+//      if (isFsoDirCreationEnabled &&
+      if (
           !key.isFile() &&
           !keyPath.endsWith("/")) {
         throw new OMException(ResultCodes.KEY_NOT_FOUND);
