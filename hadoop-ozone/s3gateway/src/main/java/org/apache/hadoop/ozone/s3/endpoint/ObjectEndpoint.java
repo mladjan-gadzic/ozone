@@ -323,10 +323,7 @@ public class ObjectEndpoint extends EndpointBase {
         Intended for apps which use Hadoop S3A.
         Example of such app is Trino (through Hive connector).
        */
-      boolean isFsoDirCreationEnabled = ozoneConfiguration
-          .getBoolean(OZONE_S3G_FSO_DIRECTORY_CREATION_ENABLED,
-              OZONE_S3G_FSO_DIRECTORY_CREATION_ENABLED_DEFAULT);
-      if (isFsoDirCreationEnabled &&
+      if (getBucket(bucketName).getBucketLayout().isFileSystemOptimized() &&
           !keyDetails.isFile() &&
           !keyPath.endsWith("/")) {
         throw new OMException(ResultCodes.KEY_NOT_FOUND);
@@ -482,10 +479,7 @@ public class ObjectEndpoint extends EndpointBase {
         Intended for apps which use Hadoop S3A.
         Example of such app is Trino (through Hive connector).
        */
-      boolean isFsoDirCreationEnabled = ozoneConfiguration
-          .getBoolean(OZONE_S3G_FSO_DIRECTORY_CREATION_ENABLED,
-              OZONE_S3G_FSO_DIRECTORY_CREATION_ENABLED_DEFAULT);
-      if (isFsoDirCreationEnabled &&
+      if (getBucket(bucketName).getBucketLayout().isFileSystemOptimized() &&
           !key.isFile() &&
           !keyPath.endsWith("/")) {
         throw new OMException(ResultCodes.KEY_NOT_FOUND);
