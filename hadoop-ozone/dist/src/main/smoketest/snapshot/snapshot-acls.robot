@@ -18,7 +18,7 @@ Documentation       Test for reading snapshots with ACLs as different users
 Library             OperatingSystem
 Resource            snapshot-setup.robot
 Test Timeout        5 minutes
-Suite Setup         Run Keyword if  '${SECURITY_ENABLED}' == 'false'     Skip Test Suite
+Suite Setup         Run Keyword if  '${SECURITY_ENABLED}' == 'false'    BuiltIn.Skip
 
 *** Variables ***
 ${USER1} =              testuser
