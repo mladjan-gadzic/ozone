@@ -304,6 +304,7 @@ public class ReconContainerManager extends ContainerManagerImpl {
         // if the object exists, only update the last seen time & bcsId fields
         ts.setLastSeenTime(currTime);
         ts.setBcsId(bcsId);
+        ts.setState(state);
       }
     }
 
