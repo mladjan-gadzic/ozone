@@ -18,11 +18,13 @@
 
 package org.apache.hadoop.ozone.om.ratis_snapshot;
 
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -40,6 +42,7 @@ import static java.net.HttpURLConnection.HTTP_OK;
 import org.apache.commons.io.FileUtils;
 
 import static org.apache.hadoop.ozone.OzoneConsts.OM_DB_NAME;
+import static org.apache.hadoop.ozone.OzoneConsts.OZONE_DB_CHECKPOINT_REQUEST_TO_EXCLUDE_SST;
 import static org.apache.hadoop.ozone.om.OMConfigKeys.OZONE_OM_HTTP_AUTH_TYPE;
 import static org.apache.hadoop.ozone.om.OMConfigKeys.OZONE_OM_SNAPSHOT_PROVIDER_CONNECTION_TIMEOUT_DEFAULT;
 import static org.apache.hadoop.ozone.om.OMConfigKeys.OZONE_OM_SNAPSHOT_PROVIDER_CONNECTION_TIMEOUT_KEY;
@@ -70,6 +73,7 @@ import org.slf4j.LoggerFactory;
  */
 public class OmRatisSnapshotProvider extends RDBSnapshotProvider {
 
+  public static final String BOUNDARY = "---XXX";
   private static final Logger LOG =
       LoggerFactory.getLogger(OmRatisSnapshotProvider.class);
 
@@ -127,14 +131,20 @@ public class OmRatisSnapshotProvider extends RDBSnapshotProvider {
       throws IOException {
     OMNodeDetails leader = peerNodesMap.get(leaderNodeID);
     URL omCheckpointUrl = leader.getOMDBCheckpointEndpointUrl(
-        httpPolicy.isHttpEnabled(), true,
-        HAUtils.getExistingSstFiles(getCandidateDir()));
+        httpPolicy.isHttpEnabled(), true);
     LOG.info("Downloading latest checkpoint from Leader OM {}. Checkpoint " +
         "URL: {}", leaderNodeID, omCheckpointUrl);
     SecurityUtil.doAsCurrentUser(() -> {
       HttpURLConnection connection = (HttpURLConnection)
           connectionFactory.openConnection(omCheckpointUrl, spnegoEnabled);
-      connection.setRequestMethod("GET");
+
+      connection.setRequestMethod("POST");
+      String contentTypeValue = "multipart/form-data; " + BOUNDARY;
+      connection.setRequestProperty("Content-Type", contentTypeValue);
+      connection.setDoOutput(true);
+      writeFormData(connection,
+          HAUtils.getExistingSstFiles(getCandidateDir()));
+
       connection.connect();
       int errorCode = connection.getResponseCode();
       if ((errorCode != HTTP_OK) && (errorCode != HTTP_CREATED)) {
@@ -157,6 +167,28 @@ public class OmRatisSnapshotProvider extends RDBSnapshotProvider {
       }
       return null;
     });
+  }
+
+  private static void writeFormData(HttpURLConnection connection,
+      List<String> sstFiles) throws IOException {
+    DataOutputStream out = new DataOutputStream(connection.getOutputStream());
+    String toExcludeSstField =
+        "name=\"" + OZONE_DB_CHECKPOINT_REQUEST_TO_EXCLUDE_SST + "[]" + "\"";
+    String crNl = "\r\n";
+    String contentDisposition =
+        "Content-Disposition: form-data; " + toExcludeSstField + crNl + crNl;
+
+    if (sstFiles.isEmpty()) {
+      out.writeBytes(BOUNDARY + crNl);
+      out.writeBytes(contentDisposition);
+    }
+
+    for (String sstFile : sstFiles) {
+      out.writeBytes(BOUNDARY + crNl);
+      out.writeBytes(contentDisposition);
+      out.writeBytes(sstFile + crNl);
+    }
+    out.writeBytes(BOUNDARY + "--" + crNl);
   }
 
   @Override
