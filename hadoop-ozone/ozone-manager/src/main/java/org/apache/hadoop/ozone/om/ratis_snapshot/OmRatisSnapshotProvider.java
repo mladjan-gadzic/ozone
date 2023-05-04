@@ -171,24 +171,26 @@ public class OmRatisSnapshotProvider extends RDBSnapshotProvider {
 
   private static void writeFormData(HttpURLConnection connection,
       List<String> sstFiles) throws IOException {
-    DataOutputStream out = new DataOutputStream(connection.getOutputStream());
-    String toExcludeSstField =
-        "name=\"" + OZONE_DB_CHECKPOINT_REQUEST_TO_EXCLUDE_SST + "[]" + "\"";
-    String crNl = "\r\n";
-    String contentDisposition =
-        "Content-Disposition: form-data; " + toExcludeSstField + crNl + crNl;
+    try (DataOutputStream out =
+             new DataOutputStream(connection.getOutputStream())) {
+      String toExcludeSstField =
+          "name=\"" + OZONE_DB_CHECKPOINT_REQUEST_TO_EXCLUDE_SST + "[]" + "\"";
+      String crNl = "\r\n";
+      String contentDisposition =
+          "Content-Disposition: form-data; " + toExcludeSstField + crNl + crNl;
 
-    if (sstFiles.isEmpty()) {
-      out.writeBytes(BOUNDARY + crNl);
-      out.writeBytes(contentDisposition);
-    }
+      if (sstFiles.isEmpty()) {
+        out.writeBytes(BOUNDARY + crNl);
+        out.writeBytes(contentDisposition);
+      }
 
-    for (String sstFile : sstFiles) {
-      out.writeBytes(BOUNDARY + crNl);
-      out.writeBytes(contentDisposition);
-      out.writeBytes(sstFile + crNl);
+      for (String sstFile : sstFiles) {
+        out.writeBytes(BOUNDARY + crNl);
+        out.writeBytes(contentDisposition);
+        out.writeBytes(sstFile + crNl);
+      }
+      out.writeBytes(BOUNDARY + "--" + crNl);
     }
-    out.writeBytes(BOUNDARY + "--" + crNl);
   }
 
   @Override
