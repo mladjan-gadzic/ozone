@@ -39,6 +39,7 @@ import org.apache.hadoop.ozone.OzoneConsts;
 
 import org.apache.commons.io.FileUtils;
 import static org.apache.hadoop.ozone.OzoneConfigKeys.OZONE_ACL_ENABLED;
+import static org.apache.hadoop.ozone.OzoneConsts.MULTIPART_FORM_DATA_BOUNDARY;
 import static org.apache.hadoop.ozone.OzoneConsts.OZONE_DB_CHECKPOINT_REQUEST_FLUSH;
 
 import org.junit.jupiter.api.AfterEach;
@@ -132,7 +133,7 @@ public class TestSCMDbCheckpointServlet {
 
       when(requestMock.getMethod()).thenReturn("POST");
       when(requestMock.getContentType()).thenReturn("multipart/form-data; " +
-          "boundary=---XXX");
+          "boundary=" + MULTIPART_FORM_DATA_BOUNDARY);
       when(servletContextMock.getAttribute(OzoneConsts.SCM_CONTEXT_ATTRIBUTE))
           .thenReturn(cluster.getStorageContainerManager());
       when(requestMock.getParameter(OZONE_DB_CHECKPOINT_REQUEST_FLUSH))
@@ -141,7 +142,7 @@ public class TestSCMDbCheckpointServlet {
       doNothing().when(responseMock).setHeader(Matchers.anyString(),
           Matchers.anyString());
 
-      tempFile = File.createTempFile("testDoGet_" + System
+      tempFile = File.createTempFile("testDoPost_" + System
           .currentTimeMillis(), ".tar");
 
       FileOutputStream fileOutputStream = new FileOutputStream(tempFile);

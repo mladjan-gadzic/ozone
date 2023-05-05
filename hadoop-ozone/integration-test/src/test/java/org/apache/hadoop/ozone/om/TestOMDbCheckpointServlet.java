@@ -64,6 +64,7 @@ import static org.apache.hadoop.hdds.recon.ReconConfig.ConfigStrings.OZONE_RECON
 import static org.apache.hadoop.ozone.OzoneConfigKeys.OZONE_ACL_ENABLED;
 import static org.apache.hadoop.ozone.OzoneConfigKeys.OZONE_ADMINISTRATORS;
 import static org.apache.hadoop.ozone.OzoneConfigKeys.OZONE_ADMINISTRATORS_WILDCARD;
+import static org.apache.hadoop.ozone.OzoneConsts.MULTIPART_FORM_DATA_BOUNDARY;
 import static org.apache.hadoop.ozone.OzoneConsts.OM_DB_NAME;
 import static org.apache.hadoop.ozone.OzoneConsts.OM_KEY_PREFIX;
 import static org.apache.hadoop.ozone.OzoneConsts.DB_COMPACTION_SST_BACKUP_DIR;
@@ -131,7 +132,7 @@ public class TestOMDbCheckpointServlet {
   public void init() throws Exception {
     conf = new OzoneConfiguration();
 
-    tempFile = File.createTempFile("testDoGet_" + System
+    tempFile = File.createTempFile("testDoPost_" + System
         .currentTimeMillis(), ".tar");
 
     FileOutputStream fileOutputStream = new FileOutputStream(tempFile);
@@ -192,7 +193,7 @@ public class TestOMDbCheckpointServlet {
         .thenReturn("true");
     when(requestMock.getMethod()).thenReturn("POST");
     when(requestMock.getContentType()).thenReturn("multipart/form-data; " +
-        "boundary=---XXX");
+        "boundary=" + MULTIPART_FORM_DATA_BOUNDARY);
 
     doCallRealMethod().when(omDbCheckpointServletMock).doPost(requestMock,
         responseMock);

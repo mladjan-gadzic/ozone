@@ -41,6 +41,7 @@ import static java.net.HttpURLConnection.HTTP_CREATED;
 import static java.net.HttpURLConnection.HTTP_OK;
 import org.apache.commons.io.FileUtils;
 
+import static org.apache.hadoop.ozone.OzoneConsts.MULTIPART_FORM_DATA_BOUNDARY;
 import static org.apache.hadoop.ozone.OzoneConsts.OM_DB_NAME;
 import static org.apache.hadoop.ozone.OzoneConsts.OZONE_DB_CHECKPOINT_REQUEST_TO_EXCLUDE_SST;
 import static org.apache.hadoop.ozone.om.OMConfigKeys.OZONE_OM_HTTP_AUTH_TYPE;
@@ -73,7 +74,6 @@ import org.slf4j.LoggerFactory;
  */
 public class OmRatisSnapshotProvider extends RDBSnapshotProvider {
 
-  public static final String BOUNDARY = "---XXX";
   private static final Logger LOG =
       LoggerFactory.getLogger(OmRatisSnapshotProvider.class);
 
@@ -139,7 +139,8 @@ public class OmRatisSnapshotProvider extends RDBSnapshotProvider {
           connectionFactory.openConnection(omCheckpointUrl, spnegoEnabled);
 
       connection.setRequestMethod("POST");
-      String contentTypeValue = "multipart/form-data; " + BOUNDARY;
+      String contentTypeValue = "multipart/form-data; boundary=" +
+          MULTIPART_FORM_DATA_BOUNDARY;
       connection.setRequestProperty("Content-Type", contentTypeValue);
       connection.setDoOutput(true);
       writeFormData(connection,
@@ -169,6 +170,22 @@ public class OmRatisSnapshotProvider extends RDBSnapshotProvider {
     });
   }
 
+  /**
+   * Writes form data to output stream as any HTTP client would for a
+   * multipart/form-data request.
+   * Proper form data includes boundary, content disposition and value
+   * separated by a new line.
+   * Example:
+   * <pre>
+   * --XXX
+   * Content-Disposition: form-data; name="field1"
+   *
+   * value1</pre>
+   * @param connection HTTP URL connection which output stream is used.
+   * @param sstFiles SST files for exclusion.
+   * @throws IOException if an exception occured during writing to output
+   * stream.
+   */
   private static void writeFormData(HttpURLConnection connection,
       List<String> sstFiles) throws IOException {
     try (DataOutputStream out =
@@ -180,16 +197,16 @@ public class OmRatisSnapshotProvider extends RDBSnapshotProvider {
           "Content-Disposition: form-data; " + toExcludeSstField + crNl + crNl;
 
       if (sstFiles.isEmpty()) {
-        out.writeBytes(BOUNDARY + crNl);
+        out.writeBytes(MULTIPART_FORM_DATA_BOUNDARY + crNl);
         out.writeBytes(contentDisposition);
       }
 
       for (String sstFile : sstFiles) {
-        out.writeBytes(BOUNDARY + crNl);
+        out.writeBytes(MULTIPART_FORM_DATA_BOUNDARY + crNl);
         out.writeBytes(contentDisposition);
         out.writeBytes(sstFile + crNl);
       }
-      out.writeBytes(BOUNDARY + "--" + crNl);
+      out.writeBytes(MULTIPART_FORM_DATA_BOUNDARY + "--" + crNl);
     }
   }
 
