@@ -173,11 +173,11 @@ public class OmRatisSnapshotProvider extends RDBSnapshotProvider {
   /**
    * Writes form data to output stream as any HTTP client would for a
    * multipart/form-data request.
-   * Proper form data includes boundary, content disposition and value
+   * Proper form data includes separator, content disposition and value
    * separated by a new line.
    * Example:
    * <pre>
-   * --XXX
+   * -----XXX
    * Content-Disposition: form-data; name="field1"
    *
    * value1</pre>
@@ -195,18 +195,19 @@ public class OmRatisSnapshotProvider extends RDBSnapshotProvider {
       String crNl = "\r\n";
       String contentDisposition =
           "Content-Disposition: form-data; " + toExcludeSstField + crNl + crNl;
+      String separator = "--" + MULTIPART_FORM_DATA_BOUNDARY;
 
       if (sstFiles.isEmpty()) {
-        out.writeBytes(MULTIPART_FORM_DATA_BOUNDARY + crNl);
+        out.writeBytes(separator + crNl);
         out.writeBytes(contentDisposition);
       }
 
       for (String sstFile : sstFiles) {
-        out.writeBytes(MULTIPART_FORM_DATA_BOUNDARY + crNl);
+        out.writeBytes(separator + crNl);
         out.writeBytes(contentDisposition);
         out.writeBytes(sstFile + crNl);
       }
-      out.writeBytes(MULTIPART_FORM_DATA_BOUNDARY + "--" + crNl);
+      out.writeBytes(separator + "--" + crNl);
     }
   }
 
