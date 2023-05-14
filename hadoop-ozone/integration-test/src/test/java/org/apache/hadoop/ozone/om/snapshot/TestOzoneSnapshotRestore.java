@@ -50,6 +50,8 @@ import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -70,6 +72,9 @@ import static org.junit.jupiter.params.provider.Arguments.arguments;
 @Timeout(value = 300)
 @Flaky("HDDS-7889")
 public class TestOzoneSnapshotRestore {
+
+  private static final Logger LOG =
+      LoggerFactory.getLogger(TestOzoneSnapshotRestore.class);
   private static final String OM_SERVICE_ID = "om-service-test-1";
   private MiniOzoneCluster cluster;
   private ObjectStore store;
@@ -176,8 +181,10 @@ public class TestOzoneSnapshotRestore {
     Iterator<? extends OzoneKey> iterator = bucket.listKeys(keyPrefix);
     int keyCount = 0;
     while (iterator.hasNext()) {
-      iterator.next();
+      OzoneKey next = iterator.next();
       keyCount++;
+      LOG.info("###keyNumber={}, volumeName={}, bucketName={}, keyName={}###",
+          keyCount, next.getVolumeName(), next.getBucketName(), next.getName());
     }
     return keyCount;
   }
@@ -217,10 +224,12 @@ public class TestOzoneSnapshotRestore {
 
     String snapshotKeyPrefix = createSnapshot(volume, bucket);
 
+    LOG.info("###Original key count###");
     int volBucketKeyCount = keyCount(buck, snapshotKeyPrefix + keyPrefix);
     Assertions.assertEquals(5, volBucketKeyCount);
 
     deleteKeys(buck);
+    LOG.info("###After deletion key count###");
     int delKeyCount = keyCount(buck, keyPrefix);
     Assertions.assertEquals(0, delKeyCount);
 
@@ -233,6 +242,7 @@ public class TestOzoneSnapshotRestore {
       keyCopy(sourcePath + keyPrefix + i, destPath);
     }
 
+    LOG.info("###After snapshot key count###");
     int finalKeyCount = keyCount(buck, keyPrefix);
     Assertions.assertEquals(5, finalKeyCount);
   }
@@ -320,6 +330,7 @@ public class TestOzoneSnapshotRestore {
 
     String snapshotKeyPrefix = createSnapshot(volume, bucket);
 
+    LOG.info("###Original key count###");
     int volBucketKeyCount = keyCount(buck, snapshotKeyPrefix + keyPrefix);
     Assertions.assertEquals(5, volBucketKeyCount);
 
@@ -332,6 +343,7 @@ public class TestOzoneSnapshotRestore {
       keyCopy(sourcePath + keyPrefix + i, destPath);
     }
 
+    LOG.info("###After snapshot key count###");
     int finalKeyCount = keyCount(buck2, keyPrefix);
     Assertions.assertEquals(5, finalKeyCount);
   }
