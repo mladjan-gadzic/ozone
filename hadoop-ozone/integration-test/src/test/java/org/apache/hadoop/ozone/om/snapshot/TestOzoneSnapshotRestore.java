@@ -271,6 +271,7 @@ public class TestOzoneSnapshotRestore {
 
     String snapshotKeyPrefix = createSnapshot(volume, bucket);
 
+    LOG.info("###Original key count###");
     int volBucketKeyCount = keyCount(buck, snapshotKeyPrefix + keyPrefix);
     Assertions.assertEquals(5, volBucketKeyCount);
 
@@ -298,6 +299,7 @@ public class TestOzoneSnapshotRestore {
       keyCopy(sourcePath + keyPrefix + i, destPath);
     }
 
+    LOG.info("###After snapshot key count###");
     int finalKeyCount = keyCount(buck2, keyPrefix);
     Assertions.assertEquals(5, finalKeyCount);
   }
