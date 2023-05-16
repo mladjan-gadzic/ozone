@@ -197,6 +197,7 @@ public class TestOzoneSnapshotRestore {
       // Copy key from source to destination path
       int res = ToolRunner.run(shell,
               new String[]{"-cp", sourcePath, destPath});
+      LOG.info("###Copying from={} to={}###", sourcePath, destPath);
       Assertions.assertEquals(0, res);
     } finally {
       shell.close();
@@ -207,6 +208,7 @@ public class TestOzoneSnapshotRestore {
   @MethodSource("bucketTypes")
   public void testRestoreSnapshot(BucketLayout bucketLayoutTest)
           throws Exception {
+    LOG.info("###bucketLayout={}###", bucketLayoutTest);
     String volume = "vol-" + RandomStringUtils.randomNumeric(5);
     String bucket = "buc-" + RandomStringUtils.randomNumeric(5);
     String keyPrefix = "key-";
@@ -238,6 +240,7 @@ public class TestOzoneSnapshotRestore {
     String destPath = OM_KEY_PREFIX + volume + OM_KEY_PREFIX + bucket
         + OM_KEY_PREFIX;
 
+    LOG.info("###Key copy###");
     for (int i = 0; i < 5; i++) {
       keyCopy(sourcePath + keyPrefix + i, destPath);
     }
@@ -251,6 +254,7 @@ public class TestOzoneSnapshotRestore {
   @MethodSource("bucketTypes")
   public void testRestoreSnapshotDifferentBucket(BucketLayout bucketLayoutTest)
           throws Exception {
+    LOG.info("###bucketLayout={}###", bucketLayoutTest);
     String volume = "vol-" + RandomStringUtils.randomNumeric(5);
     String bucket = "buc-" + RandomStringUtils.randomNumeric(5);
     String bucket2 = "buc-" + RandomStringUtils.randomNumeric(5);
@@ -309,6 +313,8 @@ public class TestOzoneSnapshotRestore {
   public void testRestoreSnapshotDifferentBucketLayout(
           BucketLayout bucketLayoutSource, BucketLayout bucketLayoutDest)
           throws Exception {
+    LOG.info("###bucketLayoutSource={}, bucketLayoutDestination={}###",
+        bucketLayoutSource, bucketLayoutDest);
     String volume = "vol-" + RandomStringUtils.randomNumeric(5);
     String bucket = "buc-" + RandomStringUtils.randomNumeric(5);
     String bucket2 = "buc-" + RandomStringUtils.randomNumeric(5);
