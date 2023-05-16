@@ -195,9 +195,9 @@ public class TestOzoneSnapshotRestore {
 
     try {
       // Copy key from source to destination path
+      LOG.info("###Copying from={} to={}###", sourcePath, destPath);
       int res = ToolRunner.run(shell,
               new String[]{"-cp", sourcePath, destPath});
-      LOG.info("###Copying from={} to={}###", sourcePath, destPath);
       Assertions.assertEquals(0, res);
     } finally {
       shell.close();
@@ -246,8 +246,13 @@ public class TestOzoneSnapshotRestore {
     }
 
     LOG.info("###After snapshot key count###");
-    int finalKeyCount = keyCount(buck, keyPrefix);
-    Assertions.assertEquals(5, finalKeyCount);
+    GenericTestUtils.waitFor(() -> {
+          try {
+            return 5 == keyCount(buck, keyPrefix);
+          } catch (IOException e) {
+            return false;
+          }
+        }, 1000, 10000);
   }
 
   @ParameterizedTest
@@ -304,8 +309,13 @@ public class TestOzoneSnapshotRestore {
     }
 
     LOG.info("###After snapshot key count###");
-    int finalKeyCount = keyCount(buck2, keyPrefix);
-    Assertions.assertEquals(5, finalKeyCount);
+    GenericTestUtils.waitFor(() -> {
+          try {
+            return 5 == keyCount(buck2, keyPrefix);
+          } catch (IOException e) {
+            return false;
+          }
+        }, 1000, 10000);
   }
 
   @ParameterizedTest
@@ -352,7 +362,12 @@ public class TestOzoneSnapshotRestore {
     }
 
     LOG.info("###After snapshot key count###");
-    int finalKeyCount = keyCount(buck2, keyPrefix);
-    Assertions.assertEquals(5, finalKeyCount);
+    GenericTestUtils.waitFor(() -> {
+      try {
+        return 5 == keyCount(buck2, keyPrefix);
+      } catch (IOException e) {
+        return false;
+      }
+    }, 1000, 10000);
   }
 }
