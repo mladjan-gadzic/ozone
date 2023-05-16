@@ -247,12 +247,12 @@ public class TestOzoneSnapshotRestore {
 
     LOG.info("###After snapshot key count###");
     GenericTestUtils.waitFor(() -> {
-          try {
-            return 5 == keyCount(buck, keyPrefix);
-          } catch (IOException e) {
-            return false;
-          }
-        }, 1000, 10000);
+      try {
+        return 5 == keyCount(buck, keyPrefix);
+      } catch (IOException e) {
+        return false;
+      }
+    }, 1000, 10000);
   }
 
   @ParameterizedTest
@@ -310,12 +310,12 @@ public class TestOzoneSnapshotRestore {
 
     LOG.info("###After snapshot key count###");
     GenericTestUtils.waitFor(() -> {
-          try {
-            return 5 == keyCount(buck2, keyPrefix);
-          } catch (IOException e) {
-            return false;
-          }
-        }, 1000, 10000);
+      try {
+        return 5 == keyCount(buck2, keyPrefix);
+      } catch (IOException e) {
+        return false;
+      }
+    }, 1000, 10000);
   }
 
   @ParameterizedTest
