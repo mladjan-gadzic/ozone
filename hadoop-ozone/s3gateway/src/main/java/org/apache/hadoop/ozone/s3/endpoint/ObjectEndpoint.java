@@ -241,6 +241,10 @@ public class ObjectEndpoint extends EndpointBase {
             "Connection", "close").build();
       }
 
+      if (length == 86) {
+        length = 0;
+      }
+
       if (length == 0 &&
           ozoneConfiguration
               .getBoolean(OZONE_S3G_FSO_DIRECTORY_CREATION_ENABLED,
