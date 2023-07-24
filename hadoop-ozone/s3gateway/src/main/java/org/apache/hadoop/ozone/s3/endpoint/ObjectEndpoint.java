@@ -247,7 +247,8 @@ public class ObjectEndpoint extends EndpointBase {
               OZONE_S3G_FSO_DIRECTORY_CREATION_ENABLED_DEFAULT) &&
           bucket.getBucketLayout() == BucketLayout.FILE_SYSTEM_OPTIMIZED;
       if (length == 0 && canCreateDirectory) {
-        createDirectory(s3GAction, volume.getName(), bucketName, keyPath);
+        s3GAction = S3GAction.CREATE_DIRECTORY;
+        createDirectory(volume.getName(), bucketName, keyPath);
         return Response.ok().status(HttpStatus.SC_OK).build();
       }
 
@@ -257,7 +258,8 @@ public class ObjectEndpoint extends EndpointBase {
 
         if (IOUtils.toString(body, StandardCharsets.UTF_8).isEmpty() &&
             canCreateDirectory) {
-          createDirectory(s3GAction, volume.getName(), bucketName, keyPath);
+          s3GAction = S3GAction.CREATE_DIRECTORY;
+          createDirectory(volume.getName(), bucketName, keyPath);
           return Response.ok().status(HttpStatus.SC_OK).build();
         }
       }
@@ -327,9 +329,8 @@ public class ObjectEndpoint extends EndpointBase {
     }
   }
 
-  private void createDirectory(S3GAction s3GAction, String volumeName,
+  private void createDirectory(String volumeName,
       String bucketName, String keyPath) throws IOException {
-    s3GAction = S3GAction.CREATE_DIRECTORY;
     getClientProtocol()
         .createDirectory(volumeName, bucketName, keyPath);
   }
