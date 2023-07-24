@@ -44,11 +44,11 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
 import java.text.ParseException;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
 import java.util.Map;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -242,43 +242,30 @@ public class ObjectEndpoint extends EndpointBase {
             "Connection", "close").build();
       }
 
-      if (length == 0 &&
-          ozoneConfiguration
-              .getBoolean(OZONE_S3G_FSO_DIRECTORY_CREATION_ENABLED,
-                  OZONE_S3G_FSO_DIRECTORY_CREATION_ENABLED_DEFAULT) &&
-          bucket.getBucketLayout() == BucketLayout.FILE_SYSTEM_OPTIMIZED) {
-        s3GAction = S3GAction.CREATE_DIRECTORY;
-        // create directory
-        getClientProtocol()
-            .createDirectory(volume.getName(), bucketName, keyPath);
+      boolean canCreateDirectory = ozoneConfiguration
+          .getBoolean(OZONE_S3G_FSO_DIRECTORY_CREATION_ENABLED,
+              OZONE_S3G_FSO_DIRECTORY_CREATION_ENABLED_DEFAULT) &&
+          bucket.getBucketLayout() == BucketLayout.FILE_SYSTEM_OPTIMIZED;
+      if (length == 0 && canCreateDirectory) {
+        createDirectory(s3GAction, volume.getName(), bucketName, keyPath);
         return Response.ok().status(HttpStatus.SC_OK).build();
+      }
+
+      if ("STREAMING-AWS4-HMAC-SHA256-PAYLOAD"
+          .equals(headers.getHeaderString("x-amz-content-sha256"))) {
+        body = new SignedChunksInputStream(body);
+
+        if (IOUtils.toString(body, StandardCharsets.UTF_8).isEmpty() &&
+            canCreateDirectory) {
+          createDirectory(s3GAction, volume.getName(), bucketName, keyPath);
+          return Response.ok().status(HttpStatus.SC_OK).build();
+        }
       }
 
       // Normal put object
       Map<String, String> customMetadata =
           getCustomMetadataFromHeaders(headers.getRequestHeaders());
 
-      if ("STREAMING-AWS4-HMAC-SHA256-PAYLOAD"
-          .equals(headers.getHeaderString("x-amz-content-sha256"))) {
-        body = new SignedChunksInputStream(body);
-        List<String> lines = new ArrayList<>();
-        try {
-          byte[] buffer = new byte[1024]; // Buffer to hold the read bytes
-          int bytesRead;
-          while ((bytesRead = body.read(buffer)) != -1) {
-            // Process the bytes in the buffer (up to bytesRead)
-            String data = new String(buffer, 0, bytesRead); // Convert bytes to String (for text)
-            LOG.info("###data={}", data);
-            lines.add(data);
-          }
-          LOG.info("###lines={}", lines);
-
-          // Close the InputStream when done (if it's a resource that needs to be closed)
-          body.close();
-        } catch (IOException e) {
-          LOG.info("###message={}", e.getMessage());
-        }
-      }
       long putLength = 0;
       if (datastreamEnabled && !enableEC && length > datastreamMinLength) {
         getMetrics().updatePutKeyMetadataStats(startNanos);
@@ -338,6 +325,13 @@ public class ObjectEndpoint extends EndpointBase {
         getMetrics().updateCreateKeySuccessStats(startNanos);
       }
     }
+  }
+
+  private void createDirectory(S3GAction s3GAction, String volumeName,
+      String bucketName, String keyPath) throws IOException {
+    s3GAction = S3GAction.CREATE_DIRECTORY;
+    getClientProtocol()
+        .createDirectory(volumeName, bucketName, keyPath);
   }
 
   /**
