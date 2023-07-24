@@ -48,6 +48,7 @@ import java.text.ParseException;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -260,6 +261,23 @@ public class ObjectEndpoint extends EndpointBase {
       if ("STREAMING-AWS4-HMAC-SHA256-PAYLOAD"
           .equals(headers.getHeaderString("x-amz-content-sha256"))) {
         body = new SignedChunksInputStream(body);
+        List<String> lines = new ArrayList<>();
+        try {
+          byte[] buffer = new byte[1024]; // Buffer to hold the read bytes
+          int bytesRead;
+          while ((bytesRead = body.read(buffer)) != -1) {
+            // Process the bytes in the buffer (up to bytesRead)
+            String data = new String(buffer, 0, bytesRead); // Convert bytes to String (for text)
+            LOG.info("###data={}", data);
+            lines.add(data);
+          }
+          LOG.info("###lines={}", lines);
+
+          // Close the InputStream when done (if it's a resource that needs to be closed)
+          body.close();
+        } catch (IOException e) {
+          LOG.info("###message={}", e.getMessage());
+        }
       }
       long putLength = 0;
       if (datastreamEnabled && !enableEC && length > datastreamMinLength) {
