@@ -1390,13 +1390,6 @@ public class TestOMRatisSnapshots {
         diff.getDiffList());
   }
 
-  private long getUsedBytes(OzoneManager newLeaderOM) throws IOException {
-    return newLeaderOM
-        .getBucketManager()
-        .getBucketInfo(ozoneBucket.getVolumeName(), ozoneBucket.getName())
-        .getUsedBytes();
-  }
-
   private SnapshotDiffReportOzone getSnapDiffReport(String volume,
       String bucket,
       String fromSnapshot,
