@@ -170,8 +170,8 @@ public class TestOMRatisSnapshots {
     if (testInfo.getDisplayName().equals("testSnapshotBackgroundServices")) {
       conf.setTimeDuration(OZONE_SNAPSHOT_SST_FILTERING_SERVICE_INTERVAL,
           5, TimeUnit.SECONDS);
-      conf.setTimeDuration(OZONE_SNAPSHOT_DELETING_SERVICE_INTERVAL,
-          100, TimeUnit.MILLISECONDS);
+      conf.setTimeDuration(OZONE_SNAPSHOT_DELETING_SERVICE_INTERVAL, 5,
+          TimeUnit.SECONDS);
       conf.setTimeDuration(OZONE_OM_SNAPSHOT_COMPACTION_DAG_MAX_TIME_ALLOWED,
           1, TimeUnit.MILLISECONDS);
       conf.setTimeDuration(
@@ -179,7 +179,7 @@ public class TestOMRatisSnapshots {
           30, TimeUnit.SECONDS);
       conf.setTimeDuration(
           OZONE_BLOCK_DELETING_SERVICE_INTERVAL,
-          100, TimeUnit.MILLISECONDS);
+          5, TimeUnit.SECONDS);
     }
     long snapshotThreshold = SNAPSHOT_THRESHOLD;
     // TODO: refactor tests to run under a new class with different configs.
@@ -1223,8 +1223,9 @@ public class TestOMRatisSnapshots {
       delete key a
       create snapshot c
       assert that a is in c's deleted table
+      create snapshot d
       delete snapshot c
-      wait until key a appears in deleted table of b.
+      wait until key a appears in deleted table of d.
     */
     // create key a
     String keyNameA = writeKeys(1).get(0);
@@ -1285,6 +1286,10 @@ public class TestOMRatisSnapshots {
       }
     }, 1000, 10000);
 
+    // create snapshot d
+    SnapshotInfo snapshotInfoD = createOzoneSnapshot(newLeaderOM,
+        snapshotNamePrefix + RandomStringUtils.randomNumeric(5));
+
     // delete snapshot c
     client.getObjectStore()
         .deleteSnapshot(volumeName, bucketName, snapshotInfoC.getName());
@@ -1299,21 +1304,21 @@ public class TestOMRatisSnapshots {
       }
     }, 1000, 10000);
 
-    // get snapshot b
-    OmSnapshot snapB;
-    try (ReferenceCounted<IOmMetadataReader, SnapshotCache> rcB = newLeaderOM
+    // get snapshot d
+    OmSnapshot snapD;
+    try (ReferenceCounted<IOmMetadataReader, SnapshotCache> rcD = newLeaderOM
         .getOmSnapshotManager()
         .checkForSnapshot(volumeName, bucketName,
-            getSnapshotPrefix(snapshotInfoB.getName()), true)) {
-      Assertions.assertNotNull(rcB);
-      snapB = (OmSnapshot) rcB.get();
+            getSnapshotPrefix(snapshotInfoD.getName()), true)) {
+      Assertions.assertNotNull(rcD);
+      snapD = (OmSnapshot) rcD.get();
     }
 
-    // wait until key a appears in deleted table of snapshot b
+    // wait until key a appears in deleted table of snapshot d
     GenericTestUtils.waitFor(() -> {
       try (TableIterator<String, ? extends Table.KeyValue<String,
           RepeatedOmKeyInfo>> iterator =
-               snapB.getMetadataManager().getDeletedTable().iterator()) {
+               snapD.getMetadataManager().getDeletedTable().iterator()) {
         while (iterator.hasNext()) {
           Table.KeyValue<String, RepeatedOmKeyInfo> next = iterator.next();
           if (next.getKey().contains(keyA)) {
