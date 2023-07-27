@@ -243,7 +243,7 @@ jobs:
       - build-info
       - build
     runs-on: ubuntu-20.04
-    timeout-minutes: 150
+    timeout-minutes: 200
     if: needs.build-info.outputs.needs-compose-tests == 'true'
     strategy:
       matrix:
