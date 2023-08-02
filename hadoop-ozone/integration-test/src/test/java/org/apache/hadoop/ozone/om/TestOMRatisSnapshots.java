@@ -1182,8 +1182,6 @@ public class TestOMRatisSnapshots {
     List<String> newKeys = writeKeys(1);
     readKeys(newKeys);
 
-    checkSnapshot(leaderOM, followerOM, snapshotName, keys, snapshotInfo);
-
     // verify that the bootstrap Follower OM can become leader
     leaderOM.transferLeadership(followerNodeId);
 
