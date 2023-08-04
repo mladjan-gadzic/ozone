@@ -20,7 +20,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.hdds.HddsConfigKeys;
 import org.apache.hadoop.hdds.conf.OzoneConfiguration;
-import org.apache.hadoop.hdds.scm.container.TestContainerManagerImpl;
 import org.apache.hadoop.hdds.scm.ha.SCMContext;
 import org.apache.hadoop.hdds.scm.ha.SCMHAManager;
 import org.apache.hadoop.hdds.scm.ha.SCMRatisServerImpl;
@@ -57,6 +56,7 @@ import java.util.concurrent.TimeoutException;
 
 import static org.apache.hadoop.hdds.HddsConfigKeys.HDDS_X509_CA_ROTATION_ACK_TIMEOUT;
 import static org.apache.hadoop.hdds.HddsConfigKeys.HDDS_X509_CA_ROTATION_CHECK_INTERNAL;
+import static org.apache.hadoop.hdds.HddsConfigKeys.HDDS_X509_CA_ROTATION_ENABLED;
 import static org.apache.hadoop.hdds.HddsConfigKeys.HDDS_X509_CA_ROTATION_TIME_OF_DAY;
 import static org.apache.hadoop.hdds.HddsConfigKeys.HDDS_X509_GRACE_DURATION_TOKEN_CHECKS_ENABLED;
 import static org.apache.hadoop.hdds.HddsConfigKeys.HDDS_X509_RENEW_GRACE_DURATION;
@@ -92,11 +92,12 @@ public class TestRootCARotationManager {
       CertificateException {
     ozoneConfig = new OzoneConfiguration();
     testDir = GenericTestUtils.getTestDir(
-        TestContainerManagerImpl.class.getSimpleName() + UUID.randomUUID());
+        TestRootCARotationManager.class.getSimpleName() + UUID.randomUUID());
     ozoneConfig
         .set(HddsConfigKeys.OZONE_METADATA_DIRS, testDir.getAbsolutePath());
     ozoneConfig
         .setBoolean(HDDS_X509_GRACE_DURATION_TOKEN_CHECKS_ENABLED, false);
+    ozoneConfig.setBoolean(HDDS_X509_CA_ROTATION_ENABLED, true);
     scm = Mockito.mock(StorageContainerManager.class);
     securityConfig = new SecurityConfig(ozoneConfig);
     scmCertClient = new SCMCertificateClient(securityConfig, null, scmID, cID,
@@ -173,6 +174,15 @@ public class TestRootCARotationManager {
     ozoneConfig.set(HDDS_X509_CA_ROTATION_CHECK_INTERNAL, "P1D");
     ozoneConfig.set(HDDS_X509_CA_ROTATION_TIME_OF_DAY, "01:00:00");
 
+    try {
+      rootCARotationManager = new RootCARotationManager(scm);
+    } catch (Exception e) {
+      fail("Should succeed");
+    }
+
+    // invalid property value is ignored when auto rotation is disabled.
+    ozoneConfig.setBoolean(HDDS_X509_CA_ROTATION_ENABLED, false);
+    ozoneConfig.set(HDDS_X509_CA_ROTATION_CHECK_INTERNAL, "P28D");
     try {
       rootCARotationManager = new RootCARotationManager(scm);
     } catch (Exception e) {
