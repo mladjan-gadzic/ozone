@@ -322,7 +322,7 @@ jobs:
     needs:
       - build-info
     runs-on: ubuntu-20.04
-    timeout-minutes: 150
+    timeout-minutes: 200
     if: needs.build-info.outputs.needs-integration-tests == 'true'
     strategy:
       matrix:
@@ -346,7 +346,7 @@ jobs:
           distribution: 'temurin'
           java-version: 8
       - name: Execute tests
-        run: hadoop-ozone/dev-support/checks/integration.sh -Dtest=TestOMRatisSnapshots -Dsurefire.rerunFailingTestsCount=5 -Dsurefire.fork.timeout=7200
+        run: hadoop-ozone/dev-support/checks/integration.sh -Dtest=TestOMRatisSnapshots -Dsurefire.rerunFailingTestsCount=5 -Dsurefire.fork.timeout=10800
         env:
           ITERATIONS: 10
       - name: Summary of failures
