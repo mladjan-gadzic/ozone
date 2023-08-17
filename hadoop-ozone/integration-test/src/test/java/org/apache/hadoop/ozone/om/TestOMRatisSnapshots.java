@@ -1137,6 +1137,7 @@ public class TestOMRatisSnapshots {
     // Read & Write after snapshot installed.
     List<String> newKeys = writeKeys(1);
     readKeys(newKeys);
+    checkSnapshot(leaderOM, followerOM, snapshotName, keys, snapshotInfo);
 
     OzoneManager newLeaderOM =
         getNewLeader(leaderOM, followerNodeId, followerOM);
