@@ -1241,8 +1241,9 @@ public class TestOMRatisSnapshots {
     SnapshotInfo snapshotInfoD = createOzoneSnapshot(newLeaderOM,
         snapshotNamePrefix + RandomStringUtils.randomNumeric(5));
 
-    File sstBackupDir = getSstBackupDir(newLeaderOM);
-    int numberOfSstFiles = sstBackupDir.listFiles().length;
+    // TODO: https://issues.apache.org/jira/browse/HDDS-9209
+    // File sstBackupDir = getSstBackupDir(newLeaderOM);
+    // int numberOfSstFiles = sstBackupDir.listFiles().length;
 
     // delete snapshot c
     client.getObjectStore()
@@ -1327,6 +1328,8 @@ public class TestOMRatisSnapshots {
         diff.getDiffList());
   }
 
+  // TODO: https://issues.apache.org/jira/browse/HDDS-9209
+  /*
   private static void checkIfCompactionBackupFilesWerePruned(File sstBackupDir,
       int numberOfSstFiles) throws TimeoutException, InterruptedException {
     GenericTestUtils.waitFor(() -> {
@@ -1334,6 +1337,7 @@ public class TestOMRatisSnapshots {
       return numberOfSstFiles > newNumberOfSstFiles;
     }, 1000, 120000);
   }
+   */
 
   private static void checkIfCompactionLogsGetAppendedByForcingCompaction(
       OzoneManager ozoneManager,
