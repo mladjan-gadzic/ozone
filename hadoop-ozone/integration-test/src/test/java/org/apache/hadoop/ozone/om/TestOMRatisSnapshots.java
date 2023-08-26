@@ -180,7 +180,7 @@ public class TestOMRatisSnapshots {
       conf.setTimeDuration(OZONE_OM_SNAPSHOT_COMPACTION_DAG_MAX_TIME_ALLOWED, 1,
           TimeUnit.MILLISECONDS);
       conf.setTimeDuration(
-          OZONE_OM_SNAPSHOT_COMPACTION_DAG_PRUNE_DAEMON_RUN_INTERVAL, 10,
+          OZONE_OM_SNAPSHOT_COMPACTION_DAG_PRUNE_DAEMON_RUN_INTERVAL, 30,
           TimeUnit.SECONDS);
     }
     if ("testSnapshotAndKeyDeletionBackgroundServices"
