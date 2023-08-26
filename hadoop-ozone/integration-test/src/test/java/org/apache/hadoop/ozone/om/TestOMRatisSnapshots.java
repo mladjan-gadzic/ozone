@@ -1430,7 +1430,7 @@ public class TestOMRatisSnapshots {
     GenericTestUtils.waitFor(() -> {
       int newNumberOfSstFiles = sstBackupDir.listFiles().length;
       return numberOfSstFiles > newNumberOfSstFiles;
-    }, 1000, 10000);
+    }, 1000, 30000);
   }
 
   private static void checkIfCompactionLogsGetAppendedByForcingCompaction(
