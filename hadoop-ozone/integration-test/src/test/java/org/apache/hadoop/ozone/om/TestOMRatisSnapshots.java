@@ -1399,7 +1399,17 @@ public class TestOMRatisSnapshots {
     // Start the inactive OM. Checkpoint installation will happen spontaneously.
     cluster.startInactiveOM(followerOM.getOMNodeId());
 
-    suspendBackupCompactionFilesPruning(followerOM);
+    GenericTestUtils.waitFor(() -> {
+      suspendBackupCompactionFilesPruning(followerOM);
+      boolean shouldRun = followerOM
+          .getMetadataManager()
+          .getStore()
+          .getRocksDBCheckpointDiffer()
+          .shouldRun();
+      // TODO https://issues.apache.org/jira/browse/HDDS-9209
+      LOG.info("###shouldRun={}", shouldRun);
+      return shouldRun;
+    }, 100, 10000);
 
     // The recently started OM should be lagging behind the leader OM.
     // Wait & for follower to update transactions to leader snapshot index.
@@ -1433,6 +1443,7 @@ public class TestOMRatisSnapshots {
 
   private static void resumeBackupCompactionFilesPruning(
       OzoneManager ozoneManager) {
+    // TODO https://issues.apache.org/jira/browse/HDDS-9209
     LOG.info("###Resumin");
     ozoneManager
         .getMetadataManager()
@@ -1443,6 +1454,7 @@ public class TestOMRatisSnapshots {
 
   private static void suspendBackupCompactionFilesPruning(
       OzoneManager ozoneManager) {
+    // TODO https://issues.apache.org/jira/browse/HDDS-9209
     LOG.info("###Suspending");
     ozoneManager
         .getMetadataManager()
