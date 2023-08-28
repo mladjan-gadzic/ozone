@@ -346,7 +346,7 @@ jobs:
           distribution: 'temurin'
           java-version: 8
       - name: Execute tests
-        run: hadoop-ozone/dev-support/checks/integration.sh -Dtest=TestOMRatisSnapshots -Dsurefire.rerunFailingTestsCount=5 -Dsurefire.fork.timeout=10800
+        run: hadoop-ozone/dev-support/checks/integration.sh -Dtest=TestSnapshotBackgroundServices -Dsurefire.rerunFailingTestsCount=5 -Dsurefire.fork.timeout=10800
         env:
           ITERATIONS: 10
       - name: Summary of failures
