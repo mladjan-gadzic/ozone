@@ -134,7 +134,7 @@ public class TestSnapshotBackgroundServices {
       conf.setTimeDuration(OZONE_OM_SNAPSHOT_COMPACTION_DAG_MAX_TIME_ALLOWED, 1,
           TimeUnit.MILLISECONDS);
       conf.setTimeDuration(
-          OZONE_OM_SNAPSHOT_COMPACTION_DAG_PRUNE_DAEMON_RUN_INTERVAL, 10,
+          OZONE_OM_SNAPSHOT_COMPACTION_DAG_PRUNE_DAEMON_RUN_INTERVAL, 1,
           TimeUnit.SECONDS);
     }
     if ("testSnapshotAndKeyDeletionBackgroundServices"
@@ -597,7 +597,7 @@ public class TestSnapshotBackgroundServices {
       // TODO https://issues.apache.org/jira/browse/HDDS-9209
       LOG.info("###{},{}", numberOfSstFiles, newNumberOfSstFiles);
       return numberOfSstFiles > newNumberOfSstFiles;
-    }, 1000, 30000);
+    }, 1000, 10000);
   }
 
   private static void checkIfCompactionLogsGetAppendedByForcingCompaction(
