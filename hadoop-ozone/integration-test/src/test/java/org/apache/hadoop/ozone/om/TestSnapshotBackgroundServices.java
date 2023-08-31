@@ -50,7 +50,6 @@ import org.apache.ratis.server.protocol.TermIndex;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
@@ -202,7 +201,6 @@ public class TestSnapshotBackgroundServices {
     }
   }
 
-  @Disabled
   @Test
   @DisplayName("testSnapshotAndKeyDeletionBackgroundServices")
   @SuppressWarnings("methodlength")
@@ -416,7 +414,6 @@ public class TestSnapshotBackgroundServices {
     return cluster.getOzoneManager(leaderOMNodeId);
   }
 
-  @Disabled
   @Test
   @DisplayName("testCompactionLogBackgroundService")
   public void testCompactionLogBackgroundService()
@@ -489,7 +486,6 @@ public class TestSnapshotBackgroundServices {
         newLeaderOM);
   }
 
-  @Disabled
   @Test
   @DisplayName("testBackupCompactionFilesPruningBackgroundService")
   public void testBackupCompactionFilesPruningBackgroundService()
