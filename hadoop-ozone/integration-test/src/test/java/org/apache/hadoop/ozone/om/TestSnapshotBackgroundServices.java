@@ -202,7 +202,6 @@ public class TestSnapshotBackgroundServices {
     }
   }
 
-  @Disabled
   @Test
   @DisplayName("testSnapshotAndKeyDeletionBackgroundServices")
   @SuppressWarnings("methodlength")
@@ -489,6 +488,7 @@ public class TestSnapshotBackgroundServices {
         newLeaderOM);
   }
 
+  @Disabled
   @Test
   @DisplayName("testBackupCompactionFilesPruningBackgroundService")
   public void testBackupCompactionFilesPruningBackgroundService()
