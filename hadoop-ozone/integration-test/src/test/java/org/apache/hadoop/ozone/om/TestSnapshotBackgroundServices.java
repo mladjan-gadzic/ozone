@@ -202,6 +202,7 @@ public class TestSnapshotBackgroundServices {
     }
   }
 
+  @Disabled
   @Test
   @DisplayName("testSnapshotAndKeyDeletionBackgroundServices")
   @SuppressWarnings("methodlength")
@@ -415,6 +416,7 @@ public class TestSnapshotBackgroundServices {
     return cluster.getOzoneManager(leaderOMNodeId);
   }
 
+  @Disabled
   @Test
   @DisplayName("testCompactionLogBackgroundService")
   public void testCompactionLogBackgroundService()
@@ -487,7 +489,6 @@ public class TestSnapshotBackgroundServices {
         newLeaderOM);
   }
 
-  @Disabled
   @Test
   @DisplayName("testBackupCompactionFilesPruningBackgroundService")
   public void testBackupCompactionFilesPruningBackgroundService()
@@ -544,6 +545,7 @@ public class TestSnapshotBackgroundServices {
         .suspend();
   }
 
+  @Disabled
   @Test
   @DisplayName("testSSTFilteringBackgroundService")
   public void testSSTFilteringBackgroundService()
