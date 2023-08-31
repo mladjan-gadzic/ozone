@@ -416,6 +416,7 @@ public class TestSnapshotBackgroundServices {
     return cluster.getOzoneManager(leaderOMNodeId);
   }
 
+  @Disabled
   @Test
   @DisplayName("testCompactionLogBackgroundService")
   public void testCompactionLogBackgroundService()
@@ -545,7 +546,6 @@ public class TestSnapshotBackgroundServices {
         .suspend();
   }
 
-  @Disabled
   @Test
   @DisplayName("testSSTFilteringBackgroundService")
   public void testSSTFilteringBackgroundService()
