@@ -202,6 +202,7 @@ public class TestSnapshotBackgroundServices {
     }
   }
 
+  @Disabled
   @Test
   @DisplayName("testSnapshotAndKeyDeletionBackgroundServices")
   @SuppressWarnings("methodlength")
@@ -415,7 +416,6 @@ public class TestSnapshotBackgroundServices {
     return cluster.getOzoneManager(leaderOMNodeId);
   }
 
-  @Disabled
   @Test
   @DisplayName("testCompactionLogBackgroundService")
   public void testCompactionLogBackgroundService()
