@@ -3599,8 +3599,19 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
     TermIndex termIndex = null;
     try {
       // Install hard links.
+      long startTime = System.currentTimeMillis();
+      LOG.info("###Started creation of hardlinks. Start time={}", startTime);
       OmSnapshotUtils.createHardLinks(omDBCheckpoint.getCheckpointLocation());
+      long endTime = System.currentTimeMillis();
+      LOG.info("###Ended creation of hardlinks. End time={}", endTime);
+      LOG.info("###Duration of creation of hardlinks={}", endTime - startTime);
+
+      startTime = System.currentTimeMillis();
+      LOG.info("###Started installation of checkpoint. Start time={}", startTime);
       termIndex = installCheckpoint(leaderId, omDBCheckpoint);
+      endTime = System.currentTimeMillis();
+      LOG.info("###Ended installation of checkpoint. End time={}", endTime);
+      LOG.info("###Duration of installation of checkpoint={}", endTime - startTime);
     } catch (Exception ex) {
       LOG.error("Failed to install snapshot from Leader OM.", ex);
     }
@@ -3813,8 +3824,13 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
           dbSnapshotsBackup.toPath());
     }
 
+    long startTime = System.currentTimeMillis();
+    LOG.info("###Started moving of checkpoint files. Start time={}", startTime);
     moveCheckpointFiles(oldDB, checkpointPath, dbDir, dbBackup, dbSnapshotsDir,
         dbSnapshotsBackup);
+    long endTime = System.currentTimeMillis();
+    LOG.info("###Ended moving of checkpoint files. End time={}", endTime);
+    LOG.info("###Duration of moving of checkpoint files={}", endTime - startTime);
     return dbBackupDir;
   }
 
@@ -3833,8 +3849,13 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
       // Link each of the candidate DB files to real DB directory.  This
       // preserves the links that already exist between files in the
       // candidate db.
+      long startTime = System.currentTimeMillis();
+      LOG.info("###Started linking files. Start time={}", startTime);
       OmSnapshotUtils.linkFiles(checkpointPath.toFile(),
           oldDB);
+      long endTime = System.currentTimeMillis();
+      LOG.info("###Ended linking files. End time={}", endTime);
+      LOG.info("###Duration of linking of files={}", endTime - startTime);
       moveOmSnapshotData(oldDB.toPath(), dbSnapshotsDir.toPath());
       Files.deleteIfExists(markerFile);
     } catch (IOException e) {
