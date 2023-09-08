@@ -503,6 +503,8 @@ public class OzoneManagerStateMachine extends BaseStateMachine {
   @Override
   public CompletableFuture<TermIndex> notifyInstallSnapshotFromLeader(
       RaftProtos.RoleInfoProto roleInfoProto, TermIndex firstTermIndexInLog) {
+    long startTime = System.currentTimeMillis();
+    LOG.info("###Started snapshot OUTER installation. Start time={}", startTime);
 
     String leaderNodeId = RaftPeerId.valueOf(roleInfoProto.getFollowerInfo()
         .getLeaderInfo().getId().getId()).toString();
@@ -512,6 +514,9 @@ public class OzoneManagerStateMachine extends BaseStateMachine {
     CompletableFuture<TermIndex> future = CompletableFuture.supplyAsync(
         () -> ozoneManager.installSnapshotFromLeader(leaderNodeId),
         installSnapshotExecutor);
+    long endTime = System.currentTimeMillis();
+    LOG.info("###Ended snapshot OUTER installation. Start time={}", startTime);
+    LOG.info("###Duration of snapshot OUTER installation={}", endTime - startTime);
     return future;
   }
 

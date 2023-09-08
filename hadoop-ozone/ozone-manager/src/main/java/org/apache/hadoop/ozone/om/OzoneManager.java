@@ -3587,6 +3587,8 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
       return null;
     }
 
+    long startTime = System.currentTimeMillis();
+    LOG.info("###Started snapshot download. Start time={}", startTime);
     DBCheckpoint omDBCheckpoint;
     try {
       omDBCheckpoint = omRatisSnapshotProvider.
@@ -3595,14 +3597,19 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
       LOG.error("Failed to download snapshot from Leader {}.", leaderId,  ex);
       return null;
     }
+    long endTime = System.currentTimeMillis();
+    LOG.info("###Ended snapshot download. End time={}", endTime);
+    LOG.info("###Duration of snapshot download={}", endTime - startTime);
 
+    startTime = System.currentTimeMillis();
+    LOG.info("###Started snapshot INNER installation. Start time={}", startTime);
     TermIndex termIndex = null;
     try {
       // Install hard links.
-      long startTime = System.currentTimeMillis();
+      startTime = System.currentTimeMillis();
       LOG.info("###Started creation of hardlinks. Start time={}", startTime);
       OmSnapshotUtils.createHardLinks(omDBCheckpoint.getCheckpointLocation());
-      long endTime = System.currentTimeMillis();
+      endTime = System.currentTimeMillis();
       LOG.info("###Ended creation of hardlinks. End time={}", endTime);
       LOG.info("###Duration of creation of hardlinks={}", endTime - startTime);
 
@@ -3615,6 +3622,10 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
     } catch (Exception ex) {
       LOG.error("Failed to install snapshot from Leader OM.", ex);
     }
+    startTime = System.currentTimeMillis();
+    endTime = System.currentTimeMillis();
+    LOG.info("###Ended snapshot INNER installation. End time={}", endTime);
+    LOG.info("###Duration of snapshot INNER installation={}", endTime - startTime);
     return termIndex;
   }
 
