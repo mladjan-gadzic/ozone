@@ -192,6 +192,7 @@ public class DBCheckpointServlet extends HttpServlet
               .collect(Collectors.toList()));
       LOG.info("Received excluding SST {}", receivedSstList);
     }
+    LOG.info("###Number of sstFiles={}", receivedSstList.size());
 
     Path tmpdir = null;
     try (BootstrapStateHandler.Lock lock = getBootstrapStateLock().lock()) {
