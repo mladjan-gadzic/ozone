@@ -26,11 +26,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import com.google.common.base.Strings;
@@ -595,25 +596,37 @@ public final class HddsServerUtil {
       List<String> toExcludeList,
       List<String> excludedList)
       throws IOException {
+    Set<String> toExcludeSet = new HashSet<>(toExcludeList);
     try (TarArchiveOutputStream archiveOutputStream =
-            new TarArchiveOutputStream(destination);
-        Stream<Path> files =
-            Files.list(checkpoint.getCheckpointLocation())) {
+             new TarArchiveOutputStream(destination);
+         Stream<Path> files =
+             Files.list(checkpoint.getCheckpointLocation()).parallel()) {
+
       archiveOutputStream.setBigNumberMode(
           TarArchiveOutputStream.BIGNUMBER_POSIX);
-      for (Path path : files.collect(Collectors.toList())) {
-        if (path != null) {
-          Path fileNamePath = path.getFileName();
-          if (fileNamePath != null) {
-            String fileName = fileNamePath.toString();
-            if (!toExcludeList.contains(fileName)) {
-              includeFile(path.toFile(), fileName, archiveOutputStream);
-            } else {
-              excludedList.add(fileName);
-            }
+
+      files.forEach(path -> {
+        if (path == null) {
+          return;
+        }
+
+        Path fileNamePath = path.getFileName();
+        if (fileNamePath == null) {
+          return;
+        }
+
+        String fileName = fileNamePath.toString();
+        if (toExcludeSet.contains(fileName)) {
+          excludedList.add(fileName);
+        } else {
+          try {
+            includeFile(path.toFile(), fileName, archiveOutputStream);
+          } catch (IOException e) {
+            throw new RuntimeException(e);
           }
         }
-      }
+      });
+
       includeRatisSnapshotCompleteFlag(archiveOutputStream);
     }
   }
