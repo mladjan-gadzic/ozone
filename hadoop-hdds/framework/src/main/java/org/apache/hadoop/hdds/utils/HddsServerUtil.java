@@ -616,11 +616,22 @@ public final class HddsServerUtil {
         }
 
         String fileName = fileNamePath.toString();
+        long startTime = System.currentTimeMillis();
+        long endTime;
         if (toExcludeSet.contains(fileName)) {
+          endTime = System.currentTimeMillis();
+          LOG.info("###Contains duration={}", endTime - startTime);
+
+          startTime = System.currentTimeMillis();
           excludedList.add(fileName);
+          endTime = System.currentTimeMillis();
+          LOG.info("###Add duration={}", endTime - startTime);
         } else {
           try {
+            startTime = System.currentTimeMillis();
             includeFile(path.toFile(), fileName, archiveOutputStream);
+            endTime = System.currentTimeMillis();
+            LOG.info("###Include duration={}", endTime - startTime);
           } catch (IOException e) {
             throw new RuntimeException(e);
           }
