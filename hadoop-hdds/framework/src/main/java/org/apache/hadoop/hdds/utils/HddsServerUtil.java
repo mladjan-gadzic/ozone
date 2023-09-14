@@ -26,12 +26,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import com.google.common.base.Strings;
@@ -596,48 +595,37 @@ public final class HddsServerUtil {
       List<String> toExcludeList,
       List<String> excludedList)
       throws IOException {
-    Set<String> toExcludeSet = new HashSet<>(toExcludeList);
     try (TarArchiveOutputStream archiveOutputStream =
-             new TarArchiveOutputStream(destination);
-         Stream<Path> files =
-             Files.list(checkpoint.getCheckpointLocation()).parallel()) {
-
+            new TarArchiveOutputStream(destination);
+        Stream<Path> files =
+            Files.list(checkpoint.getCheckpointLocation())) {
       archiveOutputStream.setBigNumberMode(
           TarArchiveOutputStream.BIGNUMBER_POSIX);
-
-      files.forEach(path -> {
-        if (path == null) {
-          return;
-        }
-
-        Path fileNamePath = path.getFileName();
-        if (fileNamePath == null) {
-          return;
-        }
-
-        String fileName = fileNamePath.toString();
-        long startTime = System.currentTimeMillis();
-        long endTime;
-        if (toExcludeSet.contains(fileName)) {
-          endTime = System.currentTimeMillis();
-          LOG.info("###Contains duration={}", endTime - startTime);
-
-          startTime = System.currentTimeMillis();
-          excludedList.add(fileName);
-          endTime = System.currentTimeMillis();
-          LOG.info("###Add duration={}", endTime - startTime);
-        } else {
-          try {
+      long startTime;
+      long endTime;
+      for (Path path : files.collect(Collectors.toList())) {
+        if (path != null) {
+          Path fileNamePath = path.getFileName();
+          if (fileNamePath != null) {
+            String fileName = fileNamePath.toString();
             startTime = System.currentTimeMillis();
-            includeFile(path.toFile(), fileName, archiveOutputStream);
-            endTime = System.currentTimeMillis();
-            LOG.info("###Include duration={}", endTime - startTime);
-          } catch (IOException e) {
-            throw new RuntimeException(e);
+            if (!toExcludeList.contains(fileName)) {
+              endTime = System.currentTimeMillis();
+              LOG.info("###Contains duration={}", endTime - startTime);
+
+              startTime = System.currentTimeMillis();
+              includeFile(path.toFile(), fileName, archiveOutputStream);
+              endTime = System.currentTimeMillis();
+              LOG.info("###Include duration={}", endTime - startTime);
+            } else {
+              startTime = System.currentTimeMillis();
+              excludedList.add(fileName);
+              endTime = System.currentTimeMillis();
+              LOG.info("###Add duration={}", endTime - startTime);
+            }
           }
         }
-      });
-
+      }
       includeRatisSnapshotCompleteFlag(archiveOutputStream);
     }
   }
