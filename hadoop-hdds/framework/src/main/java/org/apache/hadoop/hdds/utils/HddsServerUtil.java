@@ -611,17 +611,17 @@ public final class HddsServerUtil {
             startTime = System.currentTimeMillis();
             if (!toExcludeList.contains(fileName)) {
               endTime = System.currentTimeMillis();
-              LOG.info("###Contains duration={}", endTime - startTime);
+              LOG.info("###Duration of contains={}", endTime - startTime);
 
               startTime = System.currentTimeMillis();
               includeFile(path.toFile(), fileName, archiveOutputStream);
               endTime = System.currentTimeMillis();
-              LOG.info("###Include duration={}", endTime - startTime);
+              LOG.info("###Duration of include={}", endTime - startTime);
             } else {
               startTime = System.currentTimeMillis();
               excludedList.add(fileName);
               endTime = System.currentTimeMillis();
-              LOG.info("###Add duration={}", endTime - startTime);
+              LOG.info("###Duration of add={}", endTime - startTime);
             }
           }
         }

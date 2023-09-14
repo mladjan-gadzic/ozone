@@ -3586,9 +3586,12 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
           "nodes.");
       return null;
     }
+    long startTimeInstallation = System.currentTimeMillis();
 
-    long startTime = System.currentTimeMillis();
-    LOG.info("###Started snapshot download. Start time={}", startTime);
+    long startTime;
+    long endTime;
+
+    startTime = System.currentTimeMillis();
     DBCheckpoint omDBCheckpoint;
     try {
       omDBCheckpoint = omRatisSnapshotProvider.
@@ -3597,35 +3600,28 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
       LOG.error("Failed to download snapshot from Leader {}.", leaderId,  ex);
       return null;
     }
-    long endTime = System.currentTimeMillis();
-    LOG.info("###Ended snapshot download. End time={}", endTime);
+    endTime = System.currentTimeMillis();
     LOG.info("###Duration of snapshot download={}", endTime - startTime);
 
-    startTime = System.currentTimeMillis();
-    LOG.info("###Started snapshot INNER installation. Start time={}", startTime);
     TermIndex termIndex = null;
     try {
       // Install hard links.
       startTime = System.currentTimeMillis();
-      LOG.info("###Started creation of hardlinks. Start time={}", startTime);
       OmSnapshotUtils.createHardLinks(omDBCheckpoint.getCheckpointLocation());
       endTime = System.currentTimeMillis();
-      LOG.info("###Ended creation of hardlinks. End time={}", endTime);
       LOG.info("###Duration of creation of hardlinks={}", endTime - startTime);
 
       startTime = System.currentTimeMillis();
-      LOG.info("###Started installation of checkpoint. Start time={}", startTime);
       termIndex = installCheckpoint(leaderId, omDBCheckpoint);
       endTime = System.currentTimeMillis();
-      LOG.info("###Ended installation of checkpoint. End time={}", endTime);
-      LOG.info("###Duration of installation of checkpoint={}", endTime - startTime);
+      LOG.info("###Duration of installation of checkpoint={}",
+          endTime - startTime);
     } catch (Exception ex) {
       LOG.error("Failed to install snapshot from Leader OM.", ex);
     }
-    startTime = System.currentTimeMillis();
-    endTime = System.currentTimeMillis();
-    LOG.info("###Ended snapshot INNER installation. End time={}", endTime);
-    LOG.info("###Duration of snapshot INNER installation={}", endTime - startTime);
+    long endTimeInstallation = System.currentTimeMillis();
+    LOG.info("###Duration of installation={}",
+        endTimeInstallation - startTimeInstallation);
     return termIndex;
   }
 
@@ -3836,12 +3832,11 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
     }
 
     long startTime = System.currentTimeMillis();
-    LOG.info("###Started moving of checkpoint files. Start time={}", startTime);
     moveCheckpointFiles(oldDB, checkpointPath, dbDir, dbBackup, dbSnapshotsDir,
         dbSnapshotsBackup);
     long endTime = System.currentTimeMillis();
-    LOG.info("###Ended moving of checkpoint files. End time={}", endTime);
-    LOG.info("###Duration of moving of checkpoint files={}", endTime - startTime);
+    LOG.info("###Duration of moving of checkpoint files={}",
+        endTime - startTime);
     return dbBackupDir;
   }
 
@@ -3861,11 +3856,9 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
       // preserves the links that already exist between files in the
       // candidate db.
       long startTime = System.currentTimeMillis();
-      LOG.info("###Started linking files. Start time={}", startTime);
       OmSnapshotUtils.linkFiles(checkpointPath.toFile(),
           oldDB);
       long endTime = System.currentTimeMillis();
-      LOG.info("###Ended linking files. End time={}", endTime);
       LOG.info("###Duration of linking of files={}", endTime - startTime);
       moveOmSnapshotData(oldDB.toPath(), dbSnapshotsDir.toPath());
       Files.deleteIfExists(markerFile);
