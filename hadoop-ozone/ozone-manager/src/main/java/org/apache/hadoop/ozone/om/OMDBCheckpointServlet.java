@@ -165,14 +165,25 @@ public class OMDBCheckpointServlet extends DBCheckpointServlet {
       DirectoryData compactionLogDir = new DirectoryData(tmpdir,
           differ.getCompactionLogDir());
 
+      long startTime = System.currentTimeMillis();
       // Files to be excluded from tarball
       Map<Path, Path> sstFilesToExclude = normalizeExcludeList(toExcludeList,
           checkpoint.getCheckpointLocation(), sstBackupDir);
+      long endTime = System.currentTimeMillis();
+      LOG.info("###Duration of normalizing exclude list={}", endTime - startTime);
+
+      startTime = System.currentTimeMillis();
       boolean completed = getFilesForArchive(checkpoint, copyFiles,
           hardLinkFiles, sstFilesToExclude, includeSnapshotData(request),
           excludedList, sstBackupDir, compactionLogDir);
+      endTime = System.currentTimeMillis();
+      LOG.info("###Duration of getting files for archive={}", endTime - startTime);
+
+      startTime = System.currentTimeMillis();
       writeFilesToArchive(copyFiles, hardLinkFiles, archiveOutputStream,
           completed, checkpoint.getCheckpointLocation());
+      endTime = System.currentTimeMillis();
+      LOG.info("###Duration of writing files to archive={}", endTime - startTime);
     } catch (Exception e) {
       LOG.error("got exception writing to archive " + e);
       throw e;
