@@ -318,10 +318,15 @@ public class OMDBCheckpointServlet extends DBCheckpointServlet {
     }
 
     AtomicLong copySize = new AtomicLong(0L);
+    long startTime = System.currentTimeMillis();
     // Get the active fs files.
     Path dir = checkpoint.getCheckpointLocation();
-    if (!processDir(dir, copyFiles, hardLinkFiles, sstFilesToExclude,
-        new HashSet<>(), excluded, copySize, null)) {
+    boolean result =
+        processDir(dir, copyFiles, hardLinkFiles, sstFilesToExclude,
+            new HashSet<>(), excluded, copySize, null);
+    long endTime = System.currentTimeMillis();
+    LOG.info("###Duration of processing dir for fs files={}", endTime - startTime);
+    if (!result) {
       return false;
     }
 
@@ -329,26 +334,45 @@ public class OMDBCheckpointServlet extends DBCheckpointServlet {
       return true;
     }
 
+    startTime = System.currentTimeMillis();
     // Get the snapshot files.
     Set<Path> snapshotPaths = waitForSnapshotDirs(checkpoint);
+    endTime = System.currentTimeMillis();
+    LOG.info("###Duration of waiting for snapshot dirs={}", endTime - startTime);
+
     Path snapshotDir = Paths.get(OMStorage.getOmDbDir(getConf()).toString(),
         OM_SNAPSHOT_DIR);
-    if (!processDir(snapshotDir, copyFiles, hardLinkFiles, sstFilesToExclude,
-        snapshotPaths, excluded, copySize, null)) {
-      return false;
-    }
-    // Process the tmp sst compaction dir.
-    if (!processDir(sstBackupDir.getTmpDir().toPath(), copyFiles, hardLinkFiles,
-        sstFilesToExclude, new HashSet<>(), excluded, copySize,
-        sstBackupDir.getOriginalDir().toPath())) {
+    startTime = System.currentTimeMillis();
+    result =
+        processDir(snapshotDir, copyFiles, hardLinkFiles, sstFilesToExclude,
+            snapshotPaths, excluded, copySize, null);
+    endTime = System.currentTimeMillis();
+    LOG.info("###Duration of processing dir for snapshots={}", endTime - startTime);
+    if (!result) {
       return false;
     }
 
+    startTime = System.currentTimeMillis();
+    // Process the tmp sst compaction dir.
+    result =
+        processDir(sstBackupDir.getTmpDir().toPath(), copyFiles, hardLinkFiles,
+            sstFilesToExclude, new HashSet<>(), excluded, copySize,
+            sstBackupDir.getOriginalDir().toPath());
+    endTime = System.currentTimeMillis();
+    LOG.info("###Duration of processing dir for sst backups={}", endTime - startTime);
+    if (!result) {
+      return false;
+    }
+
+    startTime = System.currentTimeMillis();
     // Process the tmp compaction log dir.
-    return processDir(compactionLogDir.getTmpDir().toPath(), copyFiles,
+    result = processDir(compactionLogDir.getTmpDir().toPath(), copyFiles,
         hardLinkFiles, sstFilesToExclude,
         new HashSet<>(), excluded, copySize,
         compactionLogDir.getOriginalDir().toPath());
+    endTime = System.currentTimeMillis();
+    LOG.info("###Duration of processing dir for compaction logs={}", endTime - startTime);
+    return result;
 
   }
 
