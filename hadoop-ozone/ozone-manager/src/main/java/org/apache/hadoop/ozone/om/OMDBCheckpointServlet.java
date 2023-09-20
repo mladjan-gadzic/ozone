@@ -429,6 +429,8 @@ public class OMDBCheckpointServlet extends DBCheckpointServlet {
                           AtomicLong copySize,
                           Path destDir)
       throws IOException {
+    long startTime;
+    long endTime;
     try (Stream<Path> files = Files.list(dir)) {
       for (Path file : files.collect(Collectors.toList())) {
         File f = file.toFile();
@@ -473,8 +475,11 @@ public class OMDBCheckpointServlet extends DBCheckpointServlet {
             return false;
           }
         } else {
+          startTime = System.currentTimeMillis();
           long fileSize = processFile(file, copyFiles, hardLinkFiles,
               sstFilesToExclude, excluded, destDir);
+          endTime = System.currentTimeMillis();
+          LOG.info("Duration of processing a file={}", endTime - startTime);
           if (copySize.get() + fileSize > maxTotalSstSize) {
             return false;
           } else {
@@ -558,7 +563,6 @@ public class OMDBCheckpointServlet extends DBCheckpointServlet {
   private static Path findLinkPath(Map<Path, Path> files, Path file)
       throws IOException {
     // findbugs nonsense
-    long startTime = System.currentTimeMillis();
     Path fileNamePath = file.getFileName();
     if (fileNamePath == null) {
       throw new IOException("file has no filename:" + file);
@@ -585,8 +589,6 @@ public class OMDBCheckpointServlet extends DBCheckpointServlet {
             srcPath, file);
       }
     }
-    long endTime = System.currentTimeMillis();
-    LOG.info("###Duration of findLinkPath={}", endTime - startTime);
     return null;
   }
 
