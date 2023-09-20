@@ -169,6 +169,7 @@ public class OMDBCheckpointServlet extends DBCheckpointServlet {
       // Files to be excluded from tarball
       Map<Path, Path> sstFilesToExclude = normalizeExcludeList(toExcludeList,
           checkpoint.getCheckpointLocation(), sstBackupDir);
+      LOG.info("###Length of sstFilesToExclude={}", sstFilesToExclude.size());
       long endTime = System.currentTimeMillis();
       LOG.info("###Duration of normalizing exclude list={}", endTime - startTime);
 
@@ -372,6 +373,9 @@ public class OMDBCheckpointServlet extends DBCheckpointServlet {
         compactionLogDir.getOriginalDir().toPath());
     endTime = System.currentTimeMillis();
     LOG.info("###Duration of processing dir for compaction logs={}", endTime - startTime);
+    LOG.info("###Length of copy files={}", copyFiles.size());
+    LOG.info("###Length of copy size={}", copySize.get());
+    LOG.info("###Length of hard link files={}", hardLinkFiles.size());
     return result;
 
   }
@@ -554,6 +558,7 @@ public class OMDBCheckpointServlet extends DBCheckpointServlet {
   private static Path findLinkPath(Map<Path, Path> files, Path file)
       throws IOException {
     // findbugs nonsense
+    long startTime = System.currentTimeMillis();
     Path fileNamePath = file.getFileName();
     if (fileNamePath == null) {
       throw new IOException("file has no filename:" + file);
@@ -580,6 +585,8 @@ public class OMDBCheckpointServlet extends DBCheckpointServlet {
             srcPath, file);
       }
     }
+    long endTime = System.currentTimeMillis();
+    LOG.info("###Duration of findLinkPath={}", endTime - startTime);
     return null;
   }
 
