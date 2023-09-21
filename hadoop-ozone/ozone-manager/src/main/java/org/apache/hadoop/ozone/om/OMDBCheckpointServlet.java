@@ -614,13 +614,17 @@ public class OMDBCheckpointServlet extends DBCheckpointServlet {
         collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
     // Go through each of the files to be copied and add to archive.
-    for (Map.Entry<Path, Path> entry : filteredCopyFiles.entrySet()) {
+    filteredCopyFiles.entrySet().stream().parallel().forEach(entry -> {
       Path file = entry.getValue();
 
       // Confirm the data is in the right place.
       if (!file.toString().startsWith(metaDirPath.toString())) {
-        throw new IOException("tarball file not in metadata dir: "
-            + file + ": " + metaDirPath);
+        try {
+          throw new IOException("tarball file not in metadata dir: "
+              + file + ": " + metaDirPath);
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
       }
 
       String fixedFile = truncateFileName(truncateLength, file);
@@ -631,8 +635,12 @@ public class OMDBCheckpointServlet extends DBCheckpointServlet {
           fixedFile = f.toString();
         }
       }
-      includeFile(entry.getKey().toFile(), fixedFile, archiveOutputStream);
-    }
+      try {
+        includeFile(entry.getKey().toFile(), fixedFile, archiveOutputStream);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    });
 
     if (completed) {
       // Only create the hard link list for the last tarball.
