@@ -601,27 +601,15 @@ public final class HddsServerUtil {
             Files.list(checkpoint.getCheckpointLocation())) {
       archiveOutputStream.setBigNumberMode(
           TarArchiveOutputStream.BIGNUMBER_POSIX);
-      long startTime;
-      long endTime;
       for (Path path : files.collect(Collectors.toList())) {
         if (path != null) {
           Path fileNamePath = path.getFileName();
           if (fileNamePath != null) {
             String fileName = fileNamePath.toString();
-            startTime = System.currentTimeMillis();
             if (!toExcludeList.contains(fileName)) {
-              endTime = System.currentTimeMillis();
-              LOG.info("###Duration of contains={}", endTime - startTime);
-
-              startTime = System.currentTimeMillis();
               includeFile(path.toFile(), fileName, archiveOutputStream);
-              endTime = System.currentTimeMillis();
-              LOG.info("###Duration of include={}", endTime - startTime);
             } else {
-              startTime = System.currentTimeMillis();
               excludedList.add(fileName);
-              endTime = System.currentTimeMillis();
-              LOG.info("###Duration of add={}", endTime - startTime);
             }
           }
         }

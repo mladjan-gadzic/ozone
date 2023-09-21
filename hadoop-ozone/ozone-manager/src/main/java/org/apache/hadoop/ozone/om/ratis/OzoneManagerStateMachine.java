@@ -509,12 +509,9 @@ public class OzoneManagerStateMachine extends BaseStateMachine {
     LOG.info("Received install snapshot notification from OM leader: {} with " +
             "term index: {}", leaderNodeId, firstTermIndexInLog);
 
-    long startTime = System.currentTimeMillis();
     CompletableFuture<TermIndex> future = CompletableFuture.supplyAsync(
         () -> ozoneManager.installSnapshotFromLeader(leaderNodeId),
         installSnapshotExecutor);
-    long endTime = System.currentTimeMillis();
-    LOG.info("###Duration of snapshot installation={}", endTime - startTime);
     return future;
   }
 

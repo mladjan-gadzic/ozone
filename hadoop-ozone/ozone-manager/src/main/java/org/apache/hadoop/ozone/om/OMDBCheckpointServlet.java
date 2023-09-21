@@ -169,9 +169,9 @@ public class OMDBCheckpointServlet extends DBCheckpointServlet {
       // Files to be excluded from tarball
       Map<Path, Path> sstFilesToExclude = normalizeExcludeList(toExcludeList,
           checkpoint.getCheckpointLocation(), sstBackupDir);
-      LOG.info("###Length of sstFilesToExclude={}", sstFilesToExclude.size());
       long endTime = System.currentTimeMillis();
       LOG.info("###Duration of normalizing exclude list={}", endTime - startTime);
+      LOG.info("###Length of sstFilesToExclude={}", sstFilesToExclude.size());
 
       startTime = System.currentTimeMillis();
       boolean completed = getFilesForArchive(checkpoint, copyFiles,
@@ -179,6 +179,8 @@ public class OMDBCheckpointServlet extends DBCheckpointServlet {
           excludedList, sstBackupDir, compactionLogDir);
       endTime = System.currentTimeMillis();
       LOG.info("###Duration of getting files for archive={}", endTime - startTime);
+      LOG.info("###Length of copy files={}", copyFiles.size());
+      LOG.info("###Length of hard link files={}", hardLinkFiles.size());
 
       startTime = System.currentTimeMillis();
       writeFilesToArchive(copyFiles, hardLinkFiles, archiveOutputStream,
@@ -373,9 +375,6 @@ public class OMDBCheckpointServlet extends DBCheckpointServlet {
         compactionLogDir.getOriginalDir().toPath());
     endTime = System.currentTimeMillis();
     LOG.info("###Duration of processing dir for compaction logs={}", endTime - startTime);
-    LOG.info("###Length of copy files={}", copyFiles.size());
-    LOG.info("###Length of copy size={}", copySize.get());
-    LOG.info("###Length of hard link files={}", hardLinkFiles.size());
     return result;
 
   }
