@@ -94,6 +94,9 @@ public class OMDBCheckpointServlet extends DBCheckpointServlet {
   private transient BootstrapStateHandler.Lock lock;
   private long maxTotalSstSize = 0;
   private static final AtomicLong PAUSE_COUNTER = new AtomicLong(0);
+  public static long processFileCallCount;
+  public static long processDirCallCount;
+  public static long findLinkPathCallCount;
 
   @Override
   public void init() throws ServletException {
@@ -137,6 +140,10 @@ public class OMDBCheckpointServlet extends DBCheckpointServlet {
                                   List<String> excludedList,
                                   Path tmpdir)
       throws IOException, InterruptedException {
+    processDirCallCount = 0;
+    processFileCallCount = 0;
+    findLinkPathCallCount = 0;
+
     Objects.requireNonNull(toExcludeList);
     Objects.requireNonNull(excludedList);
 
@@ -187,6 +194,9 @@ public class OMDBCheckpointServlet extends DBCheckpointServlet {
           completed, checkpoint.getCheckpointLocation());
       endTime = System.currentTimeMillis();
       LOG.info("###Duration of writing files to archive={}", endTime - startTime);
+      LOG.info("###processDir call count={}", processDirCallCount);
+      LOG.info("###processFile call count={}", processFileCallCount);
+      LOG.info("###findLinkPath call count={}", findLinkPathCallCount);
     } catch (Exception e) {
       LOG.error("got exception writing to archive " + e);
       throw e;
@@ -428,6 +438,7 @@ public class OMDBCheckpointServlet extends DBCheckpointServlet {
                           AtomicLong copySize,
                           Path destDir)
       throws IOException {
+    processDirCallCount++;
     long startTime;
     long endTime;
     try (Stream<Path> files = Files.list(dir)) {
@@ -508,6 +519,7 @@ public class OMDBCheckpointServlet extends DBCheckpointServlet {
                                  List<String> excluded,
                                  Path destDir)
       throws IOException {
+    processFileCallCount++;
     long fileSize = 0;
     Path destFile = file;
 
@@ -561,6 +573,7 @@ public class OMDBCheckpointServlet extends DBCheckpointServlet {
    */
   private static Path findLinkPath(Map<Path, Path> files, Path file)
       throws IOException {
+    findLinkPathCallCount++;
     // findbugs nonsense
     Path fileNamePath = file.getFileName();
     if (fileNamePath == null) {
