@@ -191,6 +191,7 @@ public class DBCheckpointServlet extends HttpServlet
               .distinct()
               .collect(Collectors.toList()));
       LOG.info("Received excluding SST {}", receivedSstList);
+      LOG.info("Size:receivedSstList={}", receivedSstList.size());
     }
 
     Path tmpdir = null;

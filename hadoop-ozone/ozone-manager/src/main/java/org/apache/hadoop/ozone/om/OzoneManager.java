@@ -3581,16 +3581,22 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
    *         corresponding termIndex. Otherwise, return null.
    */
   public synchronized TermIndex installSnapshotFromLeader(String leaderId) {
+    long installStart = System.nanoTime();
     if (omRatisSnapshotProvider == null) {
       LOG.error("OM Snapshot Provider is not configured as there are no peer " +
           "nodes.");
       return null;
     }
 
+    long start;
+    long end;
     DBCheckpoint omDBCheckpoint;
     try {
+      start = System.nanoTime();
       omDBCheckpoint = omRatisSnapshotProvider.
           downloadDBSnapshotFromLeader(leaderId);
+      end = System.nanoTime();
+      LOG.info("###Duration:download={}s", TimeUnit.NANOSECONDS.toSeconds(end-start));
     } catch (IOException ex) {
       LOG.error("Failed to download snapshot from Leader {}.", leaderId,  ex);
       return null;
@@ -3599,11 +3605,20 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
     TermIndex termIndex = null;
     try {
       // Install hard links.
+      start = System.nanoTime();
       OmSnapshotUtils.createHardLinks(omDBCheckpoint.getCheckpointLocation());
+      end = System.nanoTime();
+      LOG.info("Duration:createHardLinks={}s", TimeUnit.NANOSECONDS.toSeconds(end-start));
+
+      start = System.nanoTime();
       termIndex = installCheckpoint(leaderId, omDBCheckpoint);
+      end = System.nanoTime();
+      LOG.info("Duration:installCheckpoint={}s", TimeUnit.NANOSECONDS.toSeconds(end-start));
     } catch (Exception ex) {
       LOG.error("Failed to install snapshot from Leader OM.", ex);
     }
+    long installEnd = System.nanoTime();
+    LOG.info("Duration:installSnapshotFromLeader={}s", TimeUnit.NANOSECONDS.toSeconds(installEnd-installStart));
     return termIndex;
   }
 

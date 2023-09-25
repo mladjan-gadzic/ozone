@@ -56,6 +56,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -137,6 +138,8 @@ public class OMDBCheckpointServlet extends DBCheckpointServlet {
                                   List<String> excludedList,
                                   Path tmpdir)
       throws IOException, InterruptedException {
+    long start;
+    long end;
     Objects.requireNonNull(toExcludeList);
     Objects.requireNonNull(excludedList);
 
@@ -168,11 +171,20 @@ public class OMDBCheckpointServlet extends DBCheckpointServlet {
       // Files to be excluded from tarball
       Map<Path, Path> sstFilesToExclude = normalizeExcludeList(toExcludeList,
           checkpoint.getCheckpointLocation(), sstBackupDir);
+      start = System.nanoTime();
       boolean completed = getFilesForArchive(checkpoint, copyFiles,
           hardLinkFiles, sstFilesToExclude, includeSnapshotData(request),
           excludedList, sstBackupDir, compactionLogDir);
+      end = System.nanoTime();
+      LOG.info("###Duration:getFilesForArchive={}", TimeUnit.NANOSECONDS.toSeconds(end-start));
+
+      start = System.nanoTime();
       writeFilesToArchive(copyFiles, hardLinkFiles, archiveOutputStream,
           completed, checkpoint.getCheckpointLocation());
+      end = System.nanoTime();
+      LOG.info("###Duration:writeFilesToArchive={}", TimeUnit.NANOSECONDS.toSeconds(end-start));
+      LOG.info("###Size:copyFiles={}", copyFiles.size());
+      LOG.info("###Size:hardLinkFiles={}", hardLinkFiles.size());
     } catch (Exception e) {
       LOG.error("got exception writing to archive " + e);
       throw e;
