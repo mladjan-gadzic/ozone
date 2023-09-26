@@ -34,6 +34,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import org.apache.commons.fileupload.FileItemIterator;
@@ -133,6 +134,7 @@ public class DBCheckpointServlet extends HttpServlet
    */
   private void generateSnapshotCheckpoint(HttpServletRequest request,
       HttpServletResponse response, boolean isFormData) {
+    long startGeneration = System.nanoTime();
     if (dbStore == null) {
       LOG.error(
           "Unable to process metadata snapshot request. DB Store is null");
@@ -191,7 +193,7 @@ public class DBCheckpointServlet extends HttpServlet
               .distinct()
               .collect(Collectors.toList()));
       LOG.info("Received excluding SST {}", receivedSstList);
-      LOG.info("Size:receivedSstList={}", receivedSstList.size());
+      LOG.info("###Size:receivedSstList={}", receivedSstList.size());
     }
 
     Path tmpdir = null;
@@ -258,6 +260,9 @@ public class DBCheckpointServlet extends HttpServlet
         }
       }
     }
+    long endGeneration = System.nanoTime();
+    LOG.info("###Duration:generateSnapshotCheckpoint={}s",
+        TimeUnit.NANOSECONDS.toSeconds(endGeneration - startGeneration));
   }
 
   public DBCheckpoint getCheckpoint(Path ignoredTmpdir, boolean flush)

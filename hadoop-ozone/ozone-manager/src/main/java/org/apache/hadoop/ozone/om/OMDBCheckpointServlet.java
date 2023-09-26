@@ -176,13 +176,15 @@ public class OMDBCheckpointServlet extends DBCheckpointServlet {
           hardLinkFiles, sstFilesToExclude, includeSnapshotData(request),
           excludedList, sstBackupDir, compactionLogDir);
       end = System.nanoTime();
-      LOG.info("###Duration:getFilesForArchive={}", TimeUnit.NANOSECONDS.toSeconds(end-start));
+      LOG.info("###Duration:getFilesForArchive={}s",
+          TimeUnit.NANOSECONDS.toSeconds(end - start));
 
       start = System.nanoTime();
       writeFilesToArchive(copyFiles, hardLinkFiles, archiveOutputStream,
           completed, checkpoint.getCheckpointLocation());
       end = System.nanoTime();
-      LOG.info("###Duration:writeFilesToArchive={}", TimeUnit.NANOSECONDS.toSeconds(end-start));
+      LOG.info("###Duration:writeFilesToArchive={}s",
+          TimeUnit.NANOSECONDS.toSeconds(end - start));
       LOG.info("###Size:copyFiles={}", copyFiles.size());
       LOG.info("###Size:hardLinkFiles={}", hardLinkFiles.size());
     } catch (Exception e) {
