@@ -48,6 +48,7 @@ import java.util.TimerTask;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 import com.google.common.base.Optional;
@@ -3607,10 +3608,13 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
     try {
       // Install hard links.
       start = System.nanoTime();
-      OmSnapshotUtils.createHardLinks(omDBCheckpoint.getCheckpointLocation());
+      AtomicLong createdLinksCount = new AtomicLong(0);
+      OmSnapshotUtils.createHardLinks(omDBCheckpoint.getCheckpointLocation(),
+          createdLinksCount);
       end = System.nanoTime();
       LOG.info("###Duration:createHardLinks={}s",
           TimeUnit.NANOSECONDS.toSeconds(end - start));
+      LOG.info("###Count:createHardLinks={}", createdLinksCount.get());
 
       start = System.nanoTime();
       termIndex = installCheckpoint(leaderId, omDBCheckpoint);
@@ -3852,8 +3856,10 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
       // Link each of the candidate DB files to real DB directory.  This
       // preserves the links that already exist between files in the
       // candidate db.
-      OmSnapshotUtils.linkFiles(checkpointPath.toFile(),
-          oldDB);
+      long createdLinksCount =
+          OmSnapshotUtils.linkFiles(checkpointPath.toFile(),
+              oldDB);
+      LOG.info("###Count:linkFiles={}", createdLinksCount);
       moveOmSnapshotData(oldDB.toPath(), dbSnapshotsDir.toPath());
       Files.deleteIfExists(markerFile);
     } catch (IOException e) {

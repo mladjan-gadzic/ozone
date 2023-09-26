@@ -30,6 +30,7 @@ import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -103,7 +104,8 @@ public final class OmSnapshotUtils {
    *
    * @param dbPath Path to db to have links created.
    */
-  public static void createHardLinks(Path dbPath) throws IOException {
+  public static void createHardLinks(Path dbPath, AtomicLong createdLinksCount)
+      throws IOException {
     File hardLinkFile =
         new File(dbPath.toString(), OmSnapshotManager.OM_HARDLINK_FILE);
     if (hardLinkFile.exists()) {
@@ -126,6 +128,7 @@ public final class OmSnapshotUtils {
             }
           }
           Files.createLink(fullToPath, fullFromPath);
+          createdLinksCount.getAndIncrement();
         }
         if (!hardLinkFile.delete()) {
           throw new IOException("Failed to delete: " + hardLinkFile);
@@ -140,7 +143,8 @@ public final class OmSnapshotUtils {
    * @param oldDir The dir to create links from.
    * @param newDir The dir to create links to.
    */
-  public static void linkFiles(File oldDir, File newDir) throws IOException {
+  public static long linkFiles(File oldDir, File newDir) throws IOException {
+    long createdLinksCount = 0;
     int truncateLength = oldDir.toString().length() + 1;
     List<String> oldDirList;
     try (Stream<Path> files = Files.walk(oldDir.toPath())) {
@@ -167,7 +171,9 @@ public final class OmSnapshotUtils {
         }
       } else {
         Files.createLink(newFile.toPath(), oldFile.toPath());
+        createdLinksCount++;
       }
     }
+    return createdLinksCount;
   }
 }
