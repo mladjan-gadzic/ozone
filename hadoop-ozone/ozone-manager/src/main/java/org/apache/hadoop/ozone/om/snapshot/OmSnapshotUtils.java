@@ -31,7 +31,6 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 
 import static org.apache.hadoop.ozone.OzoneConsts.OM_CHECKPOINT_DIR;
@@ -41,8 +40,7 @@ import static org.apache.hadoop.ozone.OzoneConsts.OM_CHECKPOINT_DIR;
  */
 public final class OmSnapshotUtils {
 
-  private OmSnapshotUtils() {
-  }
+  private OmSnapshotUtils() { }
 
   /**
    * Get the filename without the introductory metadata directory.
@@ -105,8 +103,7 @@ public final class OmSnapshotUtils {
    *
    * @param dbPath Path to db to have links created.
    */
-  public static void createHardLinks(Path dbPath, AtomicLong createdLinksCount)
-      throws IOException {
+  public static void createHardLinks(Path dbPath) throws IOException {
     File hardLinkFile =
         new File(dbPath.toString(), OmSnapshotManager.OM_HARDLINK_FILE);
 
@@ -135,7 +132,6 @@ public final class OmSnapshotUtils {
               }
 
               Files.createLink(fullToPath, fullFromPath);
-              createdLinksCount.getAndIncrement();
             } catch (IOException e) {
               failureCount.incrementAndGet();
             }
@@ -158,8 +154,7 @@ public final class OmSnapshotUtils {
    * @param oldDir The dir to create links from.
    * @param newDir The dir to create links to.
    */
-  public static long linkFiles(File oldDir, File newDir) throws IOException {
-    AtomicLong createdLinksCount = new AtomicLong(0);
+  public static void linkFiles(File oldDir, File newDir) throws IOException {
     Path oldDirPath = oldDir.toPath();
     Path newDirPath = newDir.toPath();
 
@@ -177,13 +172,11 @@ public final class OmSnapshotUtils {
                 Files.createDirectories(newFileParent);
               }
               Files.createLink(newFilePath, oldFilePath);
-              createdLinksCount.getAndIncrement();
             } catch (IOException e) {
               throw new RuntimeException(
                   "Link creation failed: " + e.getMessage(), e);
             }
           });
     }
-    return createdLinksCount.get();
   }
 }

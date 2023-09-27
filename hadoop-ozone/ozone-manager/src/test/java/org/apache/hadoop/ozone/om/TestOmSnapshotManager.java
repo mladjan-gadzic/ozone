@@ -52,7 +52,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicLong;
 
 import static org.apache.commons.io.file.PathUtils.copyDirectory;
 import static org.apache.hadoop.hdds.utils.HAUtils.getExistingSstFiles;
@@ -297,7 +296,7 @@ public class TestOmSnapshotManager {
     File s1FileLink = new File(followerSnapDir2, "s1.sst");
 
     // Create links on the follower from list.
-    OmSnapshotUtils.createHardLinks(candidateDir.toPath(), new AtomicLong(0));
+    OmSnapshotUtils.createHardLinks(candidateDir.toPath());
 
     // Confirm expected follower links.
     Assert.assertTrue(s1FileLink.exists());

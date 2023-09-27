@@ -89,9 +89,6 @@ import static org.apache.hadoop.ozone.om.snapshot.OmSnapshotUtils.truncateFileNa
  */
 public class OMDBCheckpointServlet extends DBCheckpointServlet {
 
-  public static long processDirDuration;
-  public static long processFileDuration;
-  public static long findLinkPathDuration;
   private static final Logger LOG =
       LoggerFactory.getLogger(OMDBCheckpointServlet.class);
   private static final long serialVersionUID = 1L;
@@ -141,9 +138,6 @@ public class OMDBCheckpointServlet extends DBCheckpointServlet {
                                   List<String> excludedList,
                                   Path tmpdir)
       throws IOException, InterruptedException {
-    processDirDuration = 0;
-    processFileDuration = 0;
-    findLinkPathDuration = 0;
     long start;
     long end;
     Objects.requireNonNull(toExcludeList);
@@ -193,12 +187,6 @@ public class OMDBCheckpointServlet extends DBCheckpointServlet {
           TimeUnit.NANOSECONDS.toSeconds(end - start));
       LOG.info("###Size:copyFiles={}", copyFiles.size());
       LOG.info("###Size:hardLinkFiles={}", hardLinkFiles.size());
-      LOG.info("###Duration:processDir={}s",
-          TimeUnit.NANOSECONDS.toSeconds(processDirDuration));
-      LOG.info("###Duration:processFile={}s",
-          TimeUnit.NANOSECONDS.toSeconds(processFileDuration));
-      LOG.info("###Duration:findLinkPath={}s",
-          TimeUnit.NANOSECONDS.toSeconds(findLinkPathDuration));
     } catch (Exception e) {
       LOG.error("got exception writing to archive " + e);
       throw e;
@@ -273,10 +261,8 @@ public class OMDBCheckpointServlet extends DBCheckpointServlet {
       differ.incrementTarballRequestCount();
       FileUtils.copyDirectory(compactionLogDir.getOriginalDir(),
           compactionLogDir.getTmpDir());
-      long createdLinksCount =
-          OmSnapshotUtils.linkFiles(sstBackupDir.getOriginalDir(),
-              sstBackupDir.getTmpDir());
-      LOG.info("###Count:linkFiles={}", createdLinksCount);
+      OmSnapshotUtils.linkFiles(sstBackupDir.getOriginalDir(),
+          sstBackupDir.getTmpDir());
       checkpoint = getDbStore().getCheckpoint(flush);
     } finally {
       // Unpause the compaction threads.
@@ -323,8 +309,6 @@ public class OMDBCheckpointServlet extends DBCheckpointServlet {
                                   DirectoryData sstBackupDir,
                                   DirectoryData compactionLogDir)
       throws IOException {
-    long start;
-    long end;
 
     maxTotalSstSize = getConf().getLong(
         OZONE_OM_RATIS_SNAPSHOT_MAX_TOTAL_SST_SIZE_KEY,
@@ -339,14 +323,8 @@ public class OMDBCheckpointServlet extends DBCheckpointServlet {
     AtomicLong copySize = new AtomicLong(0L);
     // Get the active fs files.
     Path dir = checkpoint.getCheckpointLocation();
-    start = System.nanoTime();
-    boolean processDir = processDir(dir, copyFiles, hardLinkFiles, sstFilesToExclude,
-        new HashSet<>(), excluded, copySize, null);
-    end = System.nanoTime();
-    LOG.info("###Duration:processDir(active fs files)={}s",
-        TimeUnit.NANOSECONDS.toSeconds(end - start));
-    processDirDuration += end - start;
-    if (!processDir) {
+    if (!processDir(dir, copyFiles, hardLinkFiles, sstFilesToExclude,
+        new HashSet<>(), excluded, copySize, null)) {
       return false;
     }
 
@@ -358,42 +336,22 @@ public class OMDBCheckpointServlet extends DBCheckpointServlet {
     Set<Path> snapshotPaths = waitForSnapshotDirs(checkpoint);
     Path snapshotDir = Paths.get(OMStorage.getOmDbDir(getConf()).toString(),
         OM_SNAPSHOT_DIR);
-    start = System.nanoTime();
-    processDir =
-        processDir(snapshotDir, copyFiles, hardLinkFiles, sstFilesToExclude,
-            snapshotPaths, excluded, copySize, null);
-    end = System.nanoTime();
-    LOG.info("###Duration:processDir(snapshot files)={}s",
-        TimeUnit.NANOSECONDS.toSeconds(end - start));
-    processDirDuration += end - start;
-    if (!processDir) {
+    if (!processDir(snapshotDir, copyFiles, hardLinkFiles, sstFilesToExclude,
+        snapshotPaths, excluded, copySize, null)) {
       return false;
     }
-
     // Process the tmp sst compaction dir.
-    start = System.nanoTime();
-    processDir = processDir(sstBackupDir.getTmpDir().toPath(), copyFiles, hardLinkFiles,
+    if (!processDir(sstBackupDir.getTmpDir().toPath(), copyFiles, hardLinkFiles,
         sstFilesToExclude, new HashSet<>(), excluded, copySize,
-        sstBackupDir.getOriginalDir().toPath());
-    end = System.nanoTime();
-    LOG.info("###Duration:processDir(sst compaction dir)={}s",
-        TimeUnit.NANOSECONDS.toSeconds(end - start));
-    processDirDuration += end - start;
-    if (!processDir) {
+        sstBackupDir.getOriginalDir().toPath())) {
       return false;
     }
 
     // Process the tmp compaction log dir.
-    start = System.nanoTime();
-    processDir = processDir(compactionLogDir.getTmpDir().toPath(), copyFiles,
+    return processDir(compactionLogDir.getTmpDir().toPath(), copyFiles,
         hardLinkFiles, sstFilesToExclude,
         new HashSet<>(), excluded, copySize,
         compactionLogDir.getOriginalDir().toPath());
-    end = System.nanoTime();
-    LOG.info("###Duration:processDir(tmp compaction log dir)={}s",
-        TimeUnit.NANOSECONDS.toSeconds(end - start));
-    processDirDuration += end - start;
-    return processDir;
 
   }
 
@@ -521,7 +479,6 @@ public class OMDBCheckpointServlet extends DBCheckpointServlet {
                                  List<String> excluded,
                                  Path destDir)
       throws IOException {
-    long start = System.nanoTime();
     long fileSize = 0;
     Path destFile = file;
 
@@ -561,8 +518,6 @@ public class OMDBCheckpointServlet extends DBCheckpointServlet {
         copyFiles.put(file, destFile);
       }
     }
-    long end = System.nanoTime();
-    processFileDuration += end - start;
     return fileSize;
   }
 
@@ -577,7 +532,6 @@ public class OMDBCheckpointServlet extends DBCheckpointServlet {
    */
   private static Path findLinkPath(Map<Path, Path> files, Path file)
       throws IOException {
-    long start = System.nanoTime();
     // findbugs nonsense
     Path fileNamePath = file.getFileName();
     if (fileNamePath == null) {
@@ -605,8 +559,6 @@ public class OMDBCheckpointServlet extends DBCheckpointServlet {
             srcPath, file);
       }
     }
-    long end = System.nanoTime();
-    findLinkPathDuration += end - start;
     return null;
   }
 
