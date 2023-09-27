@@ -28,9 +28,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.apache.hadoop.ozone.OzoneConsts.OM_CHECKPOINT_DIR;
@@ -155,28 +157,33 @@ public final class OmSnapshotUtils {
    * @param newDir The dir to create links to.
    */
   public static void linkFiles(File oldDir, File newDir) throws IOException {
-    Path oldDirPath = oldDir.toPath();
-    Path newDirPath = newDir.toPath();
-
-    try (Stream<Path> files = Files.walk(oldDirPath).parallel()) {
-      files
-          .filter(path -> !Files.isDirectory(path))
-          .forEach(oldFilePath -> {
-            Path newFilePath =
-                newDirPath.resolve(oldDirPath.relativize(oldFilePath));
-            Path newFileParent = newFilePath.getParent();
-
-            try {
-              if (Objects.nonNull(newFileParent) &&
-                  !Files.exists(newFileParent)) {
-                Files.createDirectories(newFileParent);
-              }
-              Files.createLink(newFilePath, oldFilePath);
-            } catch (IOException e) {
-              throw new RuntimeException(
-                  "Link creation failed: " + e.getMessage(), e);
-            }
-          });
+    int truncateLength = oldDir.toString().length() + 1;
+    List<String> oldDirList;
+    try (Stream<Path> files = Files.walk(oldDir.toPath())) {
+      oldDirList = files.map(Path::toString).
+          // Don't copy the directory itself
+          filter(s -> !s.equals(oldDir.toString())).
+          // Remove the old path
+          map(s -> s.substring(truncateLength)).
+          sorted().
+          collect(Collectors.toList());
+    }
+    for (String s: oldDirList) {
+      File oldFile = new File(oldDir, s);
+      File newFile = new File(newDir, s);
+      File newParent = newFile.getParentFile();
+      if (!newParent.exists()) {
+        if (!newParent.mkdirs()) {
+          throw new IOException("Directory create fails: " + newParent);
+        }
+      }
+      if (oldFile.isDirectory()) {
+        if (!newFile.mkdirs()) {
+          throw new IOException("Directory create fails: " + newFile);
+        }
+      } else {
+        Files.createLink(newFile.toPath(), oldFile.toPath());
+      }
     }
   }
 }
