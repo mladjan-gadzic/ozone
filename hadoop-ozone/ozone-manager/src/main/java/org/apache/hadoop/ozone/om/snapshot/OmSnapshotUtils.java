@@ -30,6 +30,7 @@ import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -106,31 +107,46 @@ public final class OmSnapshotUtils {
   public static void createHardLinks(Path dbPath) throws IOException {
     File hardLinkFile =
         new File(dbPath.toString(), OmSnapshotManager.OM_HARDLINK_FILE);
-    if (hardLinkFile.exists()) {
-      // Read file.
-      try (Stream<String> s = Files.lines(hardLinkFile.toPath())) {
-        List<String> lines = s.collect(Collectors.toList());
 
-        // Create a link for each line.
-        for (String l : lines) {
-          String from = l.split("\t")[1];
-          String to = l.split("\t")[0];
-          Path fullFromPath = Paths.get(dbPath.toString(), from);
-          Path fullToPath = Paths.get(dbPath.toString(), to);
-          // Make parent dir if it doesn't exist.
-          Path parent = fullToPath.getParent();
-          if ((parent != null) && (!parent.toFile().exists())) {
-            if (!parent.toFile().mkdirs()) {
-              throw new IOException(
-                  "Failed to create directory: " + parent.toString());
-            }
+    if (!hardLinkFile.exists()) {
+      return;
+    }
+
+    // Read file.
+    try (Stream<String> lines = Files.lines(hardLinkFile.toPath()).parallel()) {
+      // Create a link for each line.
+      lines.forEach(l -> {
+        String[] parts = l.split("\t");
+        String from = parts[1];
+        String to = parts[0];
+        Path fullFromPath = dbPath.resolve(from);
+        Path fullToPath = dbPath.resolve(to);
+
+        // Make parent dir if it doesn't exist.
+        Path parent = fullToPath.getParent();
+        if (Objects.nonNull(parent)) {
+          try {
+            Files.createDirectories(parent);
+          } catch (IOException e) {
+            throw new RuntimeException("Failed to create directory: " + parent,
+                e);
           }
+        }
+
+        try {
           Files.createLink(fullToPath, fullFromPath);
+        } catch (IOException e) {
+          throw new RuntimeException("Failed to crete link: " + fullToPath +
+              "for existing: " + fullFromPath);
         }
-        if (!hardLinkFile.delete()) {
-          throw new IOException("Failed to delete: " + hardLinkFile);
-        }
-      }
+      });
+    } catch (IOException e) {
+      throw new IOException("Failed to read file: " + hardLinkFile, e);
+    }
+
+    // Delete the hard link file if processing is successful
+    if (!hardLinkFile.delete()) {
+      throw new IOException("Failed to delete: " + hardLinkFile);
     }
   }
 
