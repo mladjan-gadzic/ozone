@@ -20,6 +20,8 @@ package org.apache.hadoop.ozone.om.snapshot;
 
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.hadoop.ozone.om.OmSnapshotManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -31,6 +33,8 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -40,6 +44,9 @@ import static org.apache.hadoop.ozone.OzoneConsts.OM_CHECKPOINT_DIR;
  * Ozone Manager Snapshot Utilities.
  */
 public final class OmSnapshotUtils {
+
+  public static final Logger LOG =
+      LoggerFactory.getLogger(OmSnapshotUtils.class);
 
   private OmSnapshotUtils() { }
 
@@ -105,6 +112,12 @@ public final class OmSnapshotUtils {
    * @param dbPath Path to db to have links created.
    */
   public static void createHardLinks(Path dbPath) throws IOException {
+    AtomicLong preparationDuration = new AtomicLong(0);
+    AtomicLong makeDirDuration = new AtomicLong(0);
+    AtomicLong makeLinkDuration = new AtomicLong(0);
+    AtomicLong postDuration = new AtomicLong(0);
+    AtomicLong deleteDuration = new AtomicLong(0);
+
     File hardLinkFile =
         new File(dbPath.toString(), OmSnapshotManager.OM_HARDLINK_FILE);
 
@@ -113,16 +126,20 @@ public final class OmSnapshotUtils {
     }
 
     // Read file.
-    try (Stream<String> lines = Files.lines(hardLinkFile.toPath()).parallel()) {
+    try (Stream<String> lines = Files.lines(hardLinkFile.toPath())) {
       // Create a link for each line.
       lines.forEach(l -> {
+        long start = System.nanoTime();
         String[] parts = l.split("\t");
         String from = parts[1];
         String to = parts[0];
         Path fullFromPath = dbPath.resolve(from);
         Path fullToPath = dbPath.resolve(to);
+        long end = System.nanoTime();
+        preparationDuration.addAndGet(end - start);
 
         // Make parent dir if it doesn't exist.
+        start = System.nanoTime();
         Path parent = fullToPath.getParent();
         if (Objects.nonNull(parent)) {
           try {
@@ -132,22 +149,49 @@ public final class OmSnapshotUtils {
                 e);
           }
         }
+        end = System.nanoTime();
+        makeDirDuration.addAndGet(end - start);
 
+        start = System.nanoTime();
         try {
           Files.createLink(fullToPath, fullFromPath);
         } catch (IOException e) {
           throw new RuntimeException("Failed to crete link: " + fullToPath +
               "for existing: " + fullFromPath);
         }
+        end = System.nanoTime();
+        makeLinkDuration.addAndGet(end - start);
       });
     } catch (IOException e) {
       throw new IOException("Failed to read file: " + hardLinkFile, e);
     }
 
+    long start = System.nanoTime();
+    try (Stream<String> lines = Files.lines(hardLinkFile.toPath())) {
+      LOG.info("###Count:lines={}", lines.count());
+    }
+    long end = System.nanoTime();
+    postDuration.addAndGet(end - start);
+
+    start = System.nanoTime();
     // Delete the hard link file if processing is successful
     if (!hardLinkFile.delete()) {
       throw new IOException("Failed to delete: " + hardLinkFile);
     }
+    end = System.nanoTime();
+    deleteDuration.addAndGet(end - start);
+
+
+    LOG.info("###Duration:preparationDuration={}",
+        TimeUnit.NANOSECONDS.toMillis(preparationDuration.get()));
+    LOG.info("###Duration:makeDirDuration={}",
+        TimeUnit.NANOSECONDS.toMillis(makeDirDuration.get()));
+    LOG.info("###Duration:makeLinkDuration={}",
+        TimeUnit.NANOSECONDS.toMillis(makeLinkDuration.get()));
+    LOG.info("###Duration:postDuration={}",
+        TimeUnit.NANOSECONDS.toMillis(postDuration.get()));
+    LOG.info("###Duration:deleteDuration={}",
+        TimeUnit.NANOSECONDS.toMillis(deleteDuration.get()));
   }
 
   /**
