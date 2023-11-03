@@ -17,6 +17,8 @@
  */
 package org.apache.hadoop.ozone.debug;
 
+import java.util.Objects;
+
 /**
  * Class that holds basic key data in relation to container it is in.
  */
@@ -50,5 +52,25 @@ public class ContainerKeyInfo {
 
   public String getKeyName() {
     return keyName;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    ContainerKeyInfo that = (ContainerKeyInfo) o;
+    return containerID == that.containerID &&
+        Objects.equals(volumeName, that.volumeName) &&
+        Objects.equals(bucketName, that.bucketName) &&
+        Objects.equals(keyName, that.keyName);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(containerID, volumeName, bucketName, keyName);
   }
 }

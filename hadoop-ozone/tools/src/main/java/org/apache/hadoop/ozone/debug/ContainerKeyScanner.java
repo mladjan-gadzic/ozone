@@ -179,7 +179,9 @@ public class ContainerKeyScanner implements Callable<Void>,
     return keysProcessed;
   }
 
-  private ColumnFamilyHandle getColumnFamilyHandle(
+
+  @VisibleForTesting
+  public ColumnFamilyHandle getColumnFamilyHandle(
       byte[] name, List<ColumnFamilyHandle> columnFamilyHandles) {
     return columnFamilyHandles
         .stream()

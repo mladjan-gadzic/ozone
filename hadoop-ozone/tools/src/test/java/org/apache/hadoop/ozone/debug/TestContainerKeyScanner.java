@@ -18,13 +18,26 @@
 
 package org.apache.hadoop.ozone.debug;
 
+import org.apache.hadoop.hdds.client.BlockID;
+import org.apache.hadoop.hdds.utils.db.Codec;
+import org.apache.hadoop.hdds.utils.db.DBColumnFamilyDefinition;
+import org.apache.hadoop.hdds.utils.db.DBDefinition;
+import org.apache.hadoop.hdds.utils.db.managed.ManagedRocksDB;
+import org.apache.hadoop.ozone.om.helpers.OmKeyInfo;
+import org.apache.hadoop.ozone.om.helpers.OmKeyLocationInfo;
+import org.apache.hadoop.ozone.om.helpers.OmKeyLocationInfoGroup;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.rocksdb.ColumnFamilyHandle;
+import org.rocksdb.RocksDB;
+import org.rocksdb.RocksIterator;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
@@ -33,6 +46,13 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anySet;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doCallRealMethod;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
@@ -40,6 +60,7 @@ import static org.mockito.Mockito.when;
  */
 @ExtendWith(MockitoExtension.class)
 public class TestContainerKeyScanner {
+
 
   private ContainerKeyScanner containerKeyScanner;
   @Mock
@@ -145,6 +166,167 @@ public class TestContainerKeyScanner {
         "  }\n" +
         "}\n";
     assertEquals(expectedOutput, outContent.toString());
+  }
+
+  @Test
+  public void testExceptionThrownWhenColumnFamilyDefinitionIsNull() {
+    DBDefinition dbDefinition = mock(DBDefinition.class);
+    String tableName = "tableName";
+    when(dbDefinition.getColumnFamily(tableName)).thenReturn(null);
+
+    Exception e = Assertions.assertThrows(IllegalStateException.class,
+        () -> containerKeyScanner.processTable(dbDefinition, null, null, null,
+            tableName));
+    Assertions.assertEquals("Table with name" + tableName + " not found",
+        e.getMessage());
+  }
+
+  @Test
+  public void testExceptionThrownWhenColumnFamilyHandleIsNull()
+      throws IOException {
+    ContainerKeyScanner containerKeyScannerMock =
+        mock(ContainerKeyScanner.class);
+    DBDefinition dbDefinition = mock(DBDefinition.class);
+    DBColumnFamilyDefinition dbColumnFamilyDefinition =
+        mock(DBColumnFamilyDefinition.class);
+    when(dbDefinition.getColumnFamily(any())).thenReturn(
+        dbColumnFamilyDefinition);
+    when(dbColumnFamilyDefinition.getName()).thenReturn("name");
+    when(
+        containerKeyScannerMock.processTable(any(), isNull(), isNull(),
+            isNull(), isNull())).thenCallRealMethod();
+
+    Exception e = Assertions.assertThrows(IllegalStateException.class,
+        () -> containerKeyScannerMock.processTable(dbDefinition, null, null,
+            null, null));
+    Assertions.assertEquals("columnFamilyHandle is null", e.getMessage());
+  }
+
+  @Test
+  public void testNoKeysProcessedWhenTableProcessed()
+      throws IOException {
+    ContainerKeyScanner containerKeyScannerMock =
+        mock(ContainerKeyScanner.class);
+    DBDefinition dbDefinition = mock(DBDefinition.class);
+    DBColumnFamilyDefinition dbColumnFamilyDefinition =
+        mock(DBColumnFamilyDefinition.class);
+    when(dbDefinition.getColumnFamily(any())).thenReturn(
+        dbColumnFamilyDefinition);
+    ColumnFamilyHandle columnFamilyHandle = mock(ColumnFamilyHandle.class);
+    when(dbColumnFamilyDefinition.getName()).thenReturn("name");
+    when(containerKeyScannerMock.getColumnFamilyHandle(any(),
+        isNull())).thenReturn(columnFamilyHandle);
+    ManagedRocksDB db = mock(ManagedRocksDB.class);
+    RocksIterator iterator = mock(RocksIterator.class);
+    RocksDB rocksDB = mock(RocksDB.class);
+    when(db.get()).thenReturn(rocksDB);
+    when(rocksDB.newIterator(columnFamilyHandle)).thenReturn(iterator);
+    doNothing().when(iterator).seekToFirst();
+    when(
+        containerKeyScannerMock.processTable(any(), isNull(), any(),
+            isNull(), isNull())).thenCallRealMethod();
+
+    long keysProcessed =
+        containerKeyScannerMock.processTable(dbDefinition, null, db, null,
+            null);
+    assertEquals(0, keysProcessed);
+  }
+
+  @Test
+  public void testKeysProcessedWhenTableProcessedButNoContainerIdMatch()
+      throws IOException {
+    ContainerKeyScanner containerKeyScannerMock =
+        mock(ContainerKeyScanner.class);
+    DBDefinition dbDefinition = mock(DBDefinition.class);
+    DBColumnFamilyDefinition dbColumnFamilyDefinition =
+        mock(DBColumnFamilyDefinition.class);
+    when(dbDefinition.getColumnFamily(any())).thenReturn(
+        dbColumnFamilyDefinition);
+    ColumnFamilyHandle columnFamilyHandle = mock(ColumnFamilyHandle.class);
+    when(dbColumnFamilyDefinition.getName()).thenReturn("name");
+    when(containerKeyScannerMock.getColumnFamilyHandle(any(),
+        isNull())).thenReturn(columnFamilyHandle);
+    ManagedRocksDB db = mock(ManagedRocksDB.class);
+    RocksIterator iterator = mock(RocksIterator.class);
+    RocksDB rocksDB = mock(RocksDB.class);
+    when(db.get()).thenReturn(rocksDB);
+    when(rocksDB.newIterator(columnFamilyHandle)).thenReturn(iterator);
+    when(iterator.isValid())
+        .thenReturn(true)
+        .thenReturn(false);
+    Codec codec = mock(Codec.class);
+    when(dbColumnFamilyDefinition.getValueCodec()).thenReturn(codec);
+    OmKeyInfo omKeyInfo = new OmKeyInfo.Builder().build();
+    omKeyInfo.setKeyLocationVersions(null);
+    when(iterator.value()).thenReturn(new byte[1]);
+    when(codec.fromPersistedFormat(any())).thenReturn(omKeyInfo);
+    when(
+        containerKeyScannerMock.processTable(any(), isNull(), any(),
+            isNull(), isNull())).thenCallRealMethod();
+
+    long keysProcessed =
+        containerKeyScannerMock.processTable(dbDefinition, null, db, null,
+            null);
+    assertEquals(1, keysProcessed);
+  }
+
+  @Test
+  public void testKeysProcessedAndKeyInfoWhenTableProcessedButContainerIdMatch()
+      throws IOException {
+    ContainerKeyScanner containerKeyScannerMock =
+        mock(ContainerKeyScanner.class);
+    DBDefinition dbDefinition = mock(DBDefinition.class);
+    DBColumnFamilyDefinition dbColumnFamilyDefinition =
+        mock(DBColumnFamilyDefinition.class);
+    when(dbDefinition.getColumnFamily(any())).thenReturn(
+        dbColumnFamilyDefinition);
+    ColumnFamilyHandle columnFamilyHandle = mock(ColumnFamilyHandle.class);
+    when(dbColumnFamilyDefinition.getName()).thenReturn("name");
+    when(containerKeyScannerMock.getColumnFamilyHandle(any(),
+        isNull())).thenReturn(columnFamilyHandle);
+    ManagedRocksDB db = mock(ManagedRocksDB.class);
+    RocksIterator iterator = mock(RocksIterator.class);
+    RocksDB rocksDB = mock(RocksDB.class);
+    when(db.get()).thenReturn(rocksDB);
+    when(rocksDB.newIterator(columnFamilyHandle)).thenReturn(iterator);
+    when(iterator.isValid())
+        .thenReturn(true)
+        .thenReturn(false);
+    Codec codec = mock(Codec.class);
+    when(dbColumnFamilyDefinition.getValueCodec()).thenReturn(codec);
+    String volumeName = "vol1";
+    String bucketName = "bucket1";
+    String keyName = "key1";
+    OmKeyInfo omKeyInfo = new OmKeyInfo.Builder()
+        .setVolumeName(volumeName)
+        .setBucketName(bucketName)
+        .setKeyName(keyName)
+        .build();
+    List<OmKeyLocationInfoGroup> keyLocationVersions = new ArrayList<>();
+    List<OmKeyLocationInfo> keyLocationInfos = new ArrayList<>();
+    long containerID = 1L;
+    keyLocationInfos.add(
+        new OmKeyLocationInfo.Builder().setBlockID(new BlockID(containerID, 1L))
+            .build());
+    keyLocationVersions.add(new OmKeyLocationInfoGroup(1L, keyLocationInfos));
+    omKeyInfo.setKeyLocationVersions(keyLocationVersions);
+    when(iterator.value()).thenReturn(new byte[1]);
+    when(codec.fromPersistedFormat(any())).thenReturn(omKeyInfo);
+    when(
+        containerKeyScannerMock.processTable(any(), isNull(), any(),
+            anyList(), isNull())).thenCallRealMethod();
+    List<ContainerKeyInfo> containerKeyInfos = new ArrayList<>();
+    ContainerKeyInfo expectedContainerKeyInfo =
+        new ContainerKeyInfo(containerID, volumeName, bucketName, keyName);
+    doCallRealMethod().when(containerKeyScannerMock).setContainerIds(anySet());
+    containerKeyScannerMock.setContainerIds(
+        containerKeyScanner.getContainerIds());
+
+    long keysProcessed =
+        containerKeyScannerMock.processTable(dbDefinition, null, db,
+            containerKeyInfos, null);
+    assertEquals(1, keysProcessed);
+    assertEquals(expectedContainerKeyInfo, containerKeyInfos.get(0));
   }
 
 }
