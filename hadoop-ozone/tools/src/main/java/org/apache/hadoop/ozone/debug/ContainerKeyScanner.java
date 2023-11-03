@@ -18,6 +18,7 @@
 
 package org.apache.hadoop.ozone.debug;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import org.apache.hadoop.hdds.cli.SubcommandWithParent;
@@ -33,8 +34,6 @@ import org.kohsuke.MetaInfServices;
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDBException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 
 import java.io.IOException;
@@ -61,8 +60,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 public class ContainerKeyScanner implements Callable<Void>,
     SubcommandWithParent {
 
-  private static final Logger LOG =
-      LoggerFactory.getLogger(ContainerKeyScanner.class);
   public static final String FILE_TABLE = "fileTable";
   public static final String KEY_TABLE = "keyTable";
 
@@ -84,7 +81,7 @@ public class ContainerKeyScanner implements Callable<Void>,
     ContainerKeyInfoWrapper containerKeyInfoWrapper =
         scanDBForContainerKeys(dbPath);
 
-    jsonPrintList(containerKeyInfoWrapper);
+    printOutput(containerKeyInfoWrapper);
 
     return null;
   }
@@ -94,7 +91,8 @@ public class ContainerKeyScanner implements Callable<Void>,
     return RDBParser.class;
   }
 
-  private ContainerKeyInfoWrapper scanDBForContainerKeys(String dbPath)
+  @VisibleForTesting
+  public ContainerKeyInfoWrapper scanDBForContainerKeys(String dbPath)
       throws RocksDBException, IOException {
     List<ContainerKeyInfo> containerKeyInfos = new ArrayList<>();
 
@@ -122,7 +120,8 @@ public class ContainerKeyScanner implements Callable<Void>,
     return new ContainerKeyInfoWrapper(keysProcessed, containerKeyInfos);
   }
 
-  private long processTable(DBDefinition dbDefinition,
+  @VisibleForTesting
+  public long processTable(DBDefinition dbDefinition,
                             List<ColumnFamilyHandle> columnFamilyHandles,
                             ManagedRocksDB db,
                             List<ContainerKeyInfo> containerKeyInfos,
@@ -203,7 +202,8 @@ public class ContainerKeyScanner implements Callable<Void>,
     return dbPath;
   }
 
-  private void jsonPrintList(ContainerKeyInfoWrapper containerKeyInfoWrapper) {
+  @VisibleForTesting
+  public void printOutput(ContainerKeyInfoWrapper containerKeyInfoWrapper) {
     List<ContainerKeyInfo> containerKeyInfos =
         containerKeyInfoWrapper.getContainerKeyInfos();
     if (containerKeyInfos.isEmpty()) {
@@ -232,5 +232,15 @@ public class ContainerKeyScanner implements Callable<Void>,
         new ContainerKeyInfoResponse(containerKeyInfoWrapper.getKeysProcessed(),
             infoMap));
     System.out.println(prettyJson);
+  }
+
+  @VisibleForTesting
+  public void setContainerIds(Set<Long> containerIds) {
+    this.containerIds = containerIds;
+  }
+
+  @VisibleForTesting
+  public Set<Long> getContainerIds() {
+    return containerIds;
   }
 }
