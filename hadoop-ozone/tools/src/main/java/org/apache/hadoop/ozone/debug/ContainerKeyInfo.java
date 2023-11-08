@@ -26,16 +26,22 @@ public class ContainerKeyInfo {
 
   private final long containerID;
   private final String volumeName;
+  private final String volumeId;
   private final String bucketName;
+  private final String bucketId;
   private final String keyName;
+  private final long parentId;
 
-  public ContainerKeyInfo(
-      long containerID, String volumeName,
-      String bucketName, String keyName) {
+  public ContainerKeyInfo(long containerID, String volumeName, String volumeId,
+                          String bucketName, String bucketId, String keyName,
+                          long parentId) {
     this.containerID = containerID;
     this.volumeName = volumeName;
+    this.volumeId = volumeId;
     this.bucketName = bucketName;
+    this.bucketId = bucketId;
     this.keyName = keyName;
+    this.parentId = parentId;
   }
 
   public long getContainerID() {
@@ -52,6 +58,18 @@ public class ContainerKeyInfo {
 
   public String getKeyName() {
     return keyName;
+  }
+
+  public String getVolumeId() {
+    return volumeId;
+  }
+
+  public String getBucketId() {
+    return bucketId;
+  }
+
+  public long getParentId() {
+    return parentId;
   }
 
   @Override

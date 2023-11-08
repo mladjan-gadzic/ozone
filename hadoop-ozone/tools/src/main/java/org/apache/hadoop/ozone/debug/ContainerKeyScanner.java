@@ -28,6 +28,7 @@ import org.apache.hadoop.hdds.utils.db.DBDefinition;
 import org.apache.hadoop.hdds.utils.db.managed.ManagedRocksDB;
 import org.apache.hadoop.hdds.utils.db.managed.ManagedRocksIterator;
 import org.apache.hadoop.ozone.OzoneConsts;
+import org.apache.hadoop.ozone.om.helpers.OmDirectoryInfo;
 import org.apache.hadoop.ozone.om.helpers.OmKeyInfo;
 import org.apache.hadoop.ozone.om.helpers.OmKeyLocationInfoGroup;
 import org.kohsuke.MetaInfServices;
@@ -91,6 +92,145 @@ public class ContainerKeyScanner implements Callable<Void>,
     return RDBParser.class;
   }
 
+  public ContainerKeyInfoWrapper scanDBForContainerKeys(String dbPath,
+                                                        Set<Long> containerIds)
+      throws RocksDBException, IOException {
+    List<ContainerKeyInfo> containerKeyInfos = new ArrayList<>();
+
+    List<ColumnFamilyDescriptor> columnFamilyDescriptors =
+        RocksDBUtils.getColumnFamilyDescriptors(dbPath);
+    final List<ColumnFamilyHandle> columnFamilyHandles = new ArrayList<>();
+    long keysProcessed = 0;
+
+    try (ManagedRocksDB db = ManagedRocksDB.openReadOnly(dbPath,
+        columnFamilyDescriptors, columnFamilyHandles)) {
+      dbPath = removeTrailingSlashIfNeeded(dbPath);
+      DBDefinition dbDefinition = DBDefinitionFactory.getDefinition(
+          Paths.get(dbPath), new OzoneConfiguration());
+      if (dbDefinition == null) {
+        throw new IllegalStateException("Incorrect DB Path");
+      }
+
+      keysProcessed +=
+          processTable(dbDefinition, columnFamilyHandles, db,
+              containerKeyInfos, FILE_TABLE, containerIds);
+      keysProcessed +=
+          processTable(dbDefinition, columnFamilyHandles, db,
+              containerKeyInfos, KEY_TABLE, containerIds);
+    }
+    return new ContainerKeyInfoWrapper(keysProcessed, containerKeyInfos);
+  }
+
+  private long processTable(DBDefinition dbDefinition,
+                            List<ColumnFamilyHandle> columnFamilyHandles,
+                            ManagedRocksDB db,
+                            List<ContainerKeyInfo> containerKeyInfos,
+                            String tableName,
+                            Set<Long> containerIds) throws IOException {
+    long keysProcessed = 0;
+    DBColumnFamilyDefinition<?, ?> columnFamilyDefinition =
+        dbDefinition.getColumnFamily(tableName);
+    if (columnFamilyDefinition == null) {
+      throw new IllegalStateException(
+          "Table with name" + tableName + " not found");
+    }
+
+    ColumnFamilyHandle columnFamilyHandle = getColumnFamilyHandle(
+        columnFamilyDefinition.getName().getBytes(UTF_8),
+        columnFamilyHandles);
+    if (columnFamilyHandle == null) {
+      throw new IllegalStateException("columnFamilyHandle is null");
+    }
+
+    try (ManagedRocksIterator iterator = new ManagedRocksIterator(
+        db.get().newIterator(columnFamilyHandle))) {
+      iterator.get().seekToFirst();
+      while (iterator.get().isValid()) {
+        OmKeyInfo value = ((OmKeyInfo) columnFamilyDefinition.getValueCodec()
+            .fromPersistedFormat(iterator.get().value()));
+        List<OmKeyLocationInfoGroup> keyLocationVersions =
+            value.getKeyLocationVersions();
+        if (Objects.isNull(keyLocationVersions)) {
+          iterator.get().next();
+          keysProcessed++;
+          continue;
+        }
+
+        String key = new String(iterator.get().key(), UTF_8);
+        String[] keyParts = key.split("/");
+        String volumeId = keyParts[1];
+        String keyId = keyParts[2];
+
+        keyLocationVersions
+            .forEach(omKeyLocationInfoGroup -> omKeyLocationInfoGroup
+                .getLocationVersionMap()
+                .values()
+                .forEach(omKeyLocationInfos -> omKeyLocationInfos
+                    .forEach(
+                        omKeyLocationInfo -> {
+                          if (containerIds.contains(
+                              omKeyLocationInfo.getContainerID())) {
+                            containerKeyInfos.add(new ContainerKeyInfo(
+                                omKeyLocationInfo.getContainerID(),
+                                value.getVolumeName(), volumeId,
+                                value.getBucketName(), keyId,
+                                value.getKeyName(), value.getParentObjectID()));
+                          }
+                        })));
+        iterator.get().next();
+        keysProcessed++;
+      }
+    }
+    return keysProcessed;
+  }
+
+  public Map<String, OmDirectoryInfo> processDirectoryTable(String dbPath)
+      throws IOException, RocksDBException {
+    List<ColumnFamilyDescriptor> columnFamilyDescriptors =
+        RocksDBUtils.getColumnFamilyDescriptors(dbPath);
+    final List<ColumnFamilyHandle> columnFamilyHandles = new ArrayList<>();
+
+    try (ManagedRocksDB db = ManagedRocksDB.openReadOnly(dbPath,
+        columnFamilyDescriptors, columnFamilyHandles)) {
+      dbPath = removeTrailingSlashIfNeeded(dbPath);
+      DBDefinition dbDefinition = DBDefinitionFactory.getDefinition(
+          Paths.get(dbPath), new OzoneConfiguration());
+      if (dbDefinition == null) {
+        throw new IllegalStateException("Incorrect DB Path");
+      }
+
+      Map<String, OmDirectoryInfo> omDirectoryInfos = new HashMap<>();
+      String tableName = "directoryTable";
+      DBColumnFamilyDefinition<?, ?> columnFamilyDefinition =
+          dbDefinition.getColumnFamily(tableName);
+      if (columnFamilyDefinition == null) {
+        throw new IllegalStateException(
+            "Table with name" + tableName + " not found");
+      }
+
+      ColumnFamilyHandle columnFamilyHandle = getColumnFamilyHandle(
+          columnFamilyDefinition.getName().getBytes(UTF_8),
+          columnFamilyHandles);
+      if (columnFamilyHandle == null) {
+        throw new IllegalStateException("columnFamilyHandle is null");
+      }
+
+      try (ManagedRocksIterator iterator = new ManagedRocksIterator(
+          db.get().newIterator(columnFamilyHandle))) {
+        iterator.get().seekToFirst();
+        while (iterator.get().isValid()) {
+          String key = new String(iterator.get().key(), UTF_8);
+          OmDirectoryInfo value =
+              ((OmDirectoryInfo) columnFamilyDefinition.getValueCodec()
+                  .fromPersistedFormat(iterator.get().value()));
+          omDirectoryInfos.put(key, value);
+          iterator.get().next();
+        }
+      }
+      return omDirectoryInfos;
+    }
+  }
+
   @VisibleForTesting
   public ContainerKeyInfoWrapper scanDBForContainerKeys(String dbPath)
       throws RocksDBException, IOException {
@@ -122,10 +262,10 @@ public class ContainerKeyScanner implements Callable<Void>,
 
   @VisibleForTesting
   public long processTable(DBDefinition dbDefinition,
-                            List<ColumnFamilyHandle> columnFamilyHandles,
-                            ManagedRocksDB db,
-                            List<ContainerKeyInfo> containerKeyInfos,
-                            String tableName)
+                           List<ColumnFamilyHandle> columnFamilyHandles,
+                           ManagedRocksDB db,
+                           List<ContainerKeyInfo> containerKeyInfos,
+                           String tableName)
       throws IOException {
     long keysProcessed = 0;
     DBColumnFamilyDefinition<?, ?> columnFamilyDefinition =
@@ -156,6 +296,11 @@ public class ContainerKeyScanner implements Callable<Void>,
           continue;
         }
 
+        String key = new String(iterator.get().key(), UTF_8);
+        String[] keyParts = key.split("/");
+        String volumeId = keyParts[1];
+        String keyId = keyParts[2];
+
         keyLocationVersions
             .forEach(omKeyLocationInfoGroup -> omKeyLocationInfoGroup
                 .getLocationVersionMap()
@@ -167,9 +312,9 @@ public class ContainerKeyScanner implements Callable<Void>,
                               omKeyLocationInfo.getContainerID())) {
                             containerKeyInfos.add(new ContainerKeyInfo(
                                 omKeyLocationInfo.getContainerID(),
-                                value.getVolumeName(),
-                                value.getBucketName(),
-                                value.getKeyName()));
+                                value.getVolumeName(), volumeId,
+                                value.getBucketName(), keyId,
+                                value.getKeyName(), value.getParentObjectID()));
                           }
                         })));
         iterator.get().next();
