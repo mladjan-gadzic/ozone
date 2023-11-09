@@ -40,6 +40,8 @@ import org.apache.hadoop.ozone.om.protocol.OzoneManagerProtocol;
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDBException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 
 import java.io.IOException;
@@ -74,6 +76,9 @@ import static org.apache.hadoop.ozone.OzoneConsts.OZONE_URI_DELIMITER;
 )
 public class ContainerCleanupSubCommand implements Callable<Void> {
 
+  private static final Logger LOG =
+      LoggerFactory.getLogger(ContainerCleanupSubCommand.class);
+
   @CommandLine.Mixin
   private ScmOption scmOption;
 
@@ -107,14 +112,44 @@ public class ContainerCleanupSubCommand implements Callable<Void> {
 
   @Override
   public Void call() throws Exception {
+    // get info from file and key tables
     ContainerKeyScanner containerKeyScanner = new ContainerKeyScanner();
     ContainerKeyInfoWrapper containerKeyInfoWrapper =
         containerKeyScanner.scanDBForContainerKeys(dbPath, containerIds);
+    deleteKeys(containerKeyInfoWrapper);
 
+    deleteContainers();
+
+    return null;
+  }
+
+  private void deleteContainers() throws IOException {
+    long containersDeleted = 0;
+    // get scm client
+    try (ScmClient client = scmOption.createScmClient(
+        parent.getParent().getOzoneConf())) {
+      for (long containerId : containerIds) {
+        try {
+          client.deleteContainer(containerId, true);
+          containersDeleted++;
+          LOG.info("Container with id:{} deleted", containerId);
+        } catch (IOException e) {
+          LOG.warn("Container with id:{} could not be deleted", containerId);
+          LOG.debug("Exception occured: {}, during deletion of a container " +
+              "with an id:{}", e.getMessage(), containerId);
+        }
+      }
+    }
+    LOG.info("Total containers deleted:{}", containersDeleted);
+  }
+
+  private void deleteKeys(ContainerKeyInfoWrapper containerKeyInfoWrapper)
+      throws Exception {
+    // get om client
     try (
         OzoneManagerProtocol client = parent.createOmClient(omServiceId, omHost,
             false)) {
-      // go thorugh each container key info
+      long keysDeleted = 0;
       for (ContainerKeyInfo containerKeyInfo :
           containerKeyInfoWrapper.getContainerKeyInfos()) {
         OmKeyArgs.Builder keyArgsBuilder = new OmKeyArgs.Builder()
@@ -130,19 +165,23 @@ public class ContainerCleanupSubCommand implements Callable<Void> {
         } else {
           keyArgsBuilder.setKeyName(containerKeyInfo.getKeyName());
         }
-        client.deleteKey(keyArgsBuilder.build());
+
+        // delete keys
+        OmKeyArgs keyArgs = keyArgsBuilder.build();
+        try {
+          client.deleteKey(keyArgs);
+          keysDeleted++;
+          LOG.info("Key with name:{} deleted", keyArgs.getKeyName());
+        } catch (IOException e) {
+          LOG.warn(
+              "Key with name:{} could not be deleted", keyArgs.getKeyName());
+          LOG.debug(
+              "Exception occured: {}, during deletion of a key with a name:{}",
+              e.getMessage(), keyArgs.getKeyName());
+        }
       }
+      LOG.info("Total keys deleted:{}", keysDeleted);
     }
-
-    // TODO fix container deletion
-    try (ScmClient client = scmOption.createScmClient(
-        parent.getParent().getOzoneConf())) {
-      // TODO delete does not work
-//      client.deleteContainer(1, true);
-    }
-
-    System.out.println("Called container cleanup");
-    return null;
   }
 
   private void handleFso(ContainerKeyInfo containerKeyInfo,
@@ -152,8 +191,6 @@ public class ContainerCleanupSubCommand implements Callable<Void> {
     String prefix =
         OM_KEY_PREFIX + containerKeyInfo.getVolumeId() + OM_KEY_PREFIX +
             containerKeyInfo.getBucketId() + OM_KEY_PREFIX;
-    // TODO optimize this to use dirObjId
-    //  and to return pair of objectId and path
     Set<Long> dirObjIds = new HashSet<>();
     dirObjIds.add(containerKeyInfo.getParentId());
     Map<Long, Path> absolutePathForObjectIDs =
@@ -163,7 +200,7 @@ public class ContainerCleanupSubCommand implements Callable<Void> {
     Path path =
         absolutePathForObjectIDs.get(containerKeyInfo.getParentId());
     String keyName = null;
-    // If it is directly under the bucket
+    // check whether key is directly under a bucket
     if (path.toString().equals(OM_KEY_PREFIX)) {
       keyName = path + containerKeyInfo.getKeyName();
     } else {
@@ -172,6 +209,10 @@ public class ContainerCleanupSubCommand implements Callable<Void> {
     keyArgsBuilder.setKeyName(keyName);
   }
 
+  // TODO optimize this method to use single objectId instead of a set
+  //  and to return pair of objectId and path instead of a map.
+  //  Further optimization could be done to reuse db
+  //  and not connect to it for every method call
   public Map<Long, Path> getAbsolutePathForObjectIDs(
       long bucketId, String prefix, Optional<Set<Long>> dirObjIds)
       throws IOException, RocksDBException {
@@ -196,7 +237,7 @@ public class ContainerCleanupSubCommand implements Callable<Void> {
 
       try (ManagedRocksDB db = ManagedRocksDB.openReadOnly(dbPath,
           columnFamilyDescriptors, columnFamilyHandles)) {
-        dbPath = removeTrailingSlashIfNeeded(dbPath);
+        dbPath = removeTrailingSlashIfNeeded();
         DBDefinition dbDefinition = DBDefinitionFactory.getDefinition(
             Paths.get(dbPath), new OzoneConfiguration());
         if (dbDefinition == null) {
@@ -257,7 +298,7 @@ public class ContainerCleanupSubCommand implements Callable<Void> {
     }
   }
 
-  private String removeTrailingSlashIfNeeded(String dbPath) {
+  private String removeTrailingSlashIfNeeded() {
     if (dbPath.endsWith(OzoneConsts.OZONE_URI_DELIMITER)) {
       dbPath = dbPath.substring(0, dbPath.length() - 1);
     }
