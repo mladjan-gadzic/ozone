@@ -33,7 +33,10 @@ import org.apache.hadoop.ozone.debug.ContainerKeyInfoWrapper;
 import org.apache.hadoop.ozone.debug.ContainerKeyScanner;
 import org.apache.hadoop.ozone.debug.DBDefinitionFactory;
 import org.apache.hadoop.ozone.debug.RocksDBUtils;
+import org.apache.hadoop.ozone.om.helpers.OmBucketInfo;
 import org.apache.hadoop.ozone.om.helpers.OmDirectoryInfo;
+import org.apache.hadoop.ozone.om.helpers.OmKeyArgs;
+import org.apache.hadoop.ozone.om.protocol.OzoneManagerProtocol;
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDBException;
@@ -108,45 +111,65 @@ public class ContainerCleanupSubCommand implements Callable<Void> {
     ContainerKeyInfoWrapper containerKeyInfoWrapper =
         containerKeyScanner.scanDBForContainerKeys(dbPath, containerIds);
 
-    ContainerKeyInfo containerKeyInfo =
-        containerKeyInfoWrapper.getContainerKeyInfos().get(0);
-
-    long bucketId = Long.parseLong(containerKeyInfo.getBucketId());
-    String prefix =
-        OM_KEY_PREFIX + containerKeyInfo.getVolumeId() + OM_KEY_PREFIX +
-            containerKeyInfo.getBucketId() + OM_KEY_PREFIX;
-    Set<Long> dirObjIds = new HashSet<>();
-    dirObjIds.add(containerKeyInfo.getParentId());
-    dirObjIds.add(
-        containerKeyInfoWrapper.getContainerKeyInfos().get(1).getParentId());
-    dirObjIds.add(
-        containerKeyInfoWrapper.getContainerKeyInfos().get(2).getParentId());
-    Map<Long, Path> absolutePathForObjectIDs =
-        getAbsolutePathForObjectIDs(bucketId, prefix, Optional.of(dirObjIds));
-
-    /*
-    // TODO check how to instantiate a client
     try (
         OzoneManagerProtocol client = parent.createOmClient(omServiceId, omHost,
             false)) {
-      OmKeyArgs omKeyArgs = new OmKeyArgs.Builder()
-          .setVolumeName(containerKeyInfo.getVolumeName())
-          .setBucketName(containerKeyInfo.getBucketName())
-          // TODO add key name by parsing abs path and extend scanner by objectId of a key
-          .setKeyName()
-          .build();
-      client.deleteKey(omKeyArgs);
+      // go thorugh each container key info
+      for (ContainerKeyInfo containerKeyInfo :
+          containerKeyInfoWrapper.getContainerKeyInfos()) {
+        OmKeyArgs.Builder keyArgsBuilder = new OmKeyArgs.Builder()
+            .setVolumeName(containerKeyInfo.getVolumeName())
+            .setBucketName(containerKeyInfo.getBucketName());
+
+        // set key name based on bucket layout
+        OmBucketInfo bucketInfo =
+            client.getBucketInfo(containerKeyInfo.getVolumeName(),
+                containerKeyInfo.getBucketName());
+        if (bucketInfo.getBucketLayout().isFileSystemOptimized()) {
+          handleFso(containerKeyInfo, keyArgsBuilder);
+        } else {
+          keyArgsBuilder.setKeyName(containerKeyInfo.getKeyName());
+        }
+        client.deleteKey(keyArgsBuilder.build());
+      }
     }
-     */
 
     // TODO fix container deletion
     try (ScmClient client = scmOption.createScmClient(
         parent.getParent().getOzoneConf())) {
-      client.deleteContainer(1, true);
+      // TODO delete does not work
+//      client.deleteContainer(1, true);
     }
 
     System.out.println("Called container cleanup");
     return null;
+  }
+
+  private void handleFso(ContainerKeyInfo containerKeyInfo,
+                         OmKeyArgs.Builder keyArgsBuilder)
+      throws IOException, RocksDBException {
+    long bucketId = Long.parseLong(containerKeyInfo.getBucketId());
+    String prefix =
+        OM_KEY_PREFIX + containerKeyInfo.getVolumeId() + OM_KEY_PREFIX +
+            containerKeyInfo.getBucketId() + OM_KEY_PREFIX;
+    // TODO optimize this to use dirObjId
+    //  and to return pair of objectId and path
+    Set<Long> dirObjIds = new HashSet<>();
+    dirObjIds.add(containerKeyInfo.getParentId());
+    Map<Long, Path> absolutePathForObjectIDs =
+        getAbsolutePathForObjectIDs(bucketId, prefix,
+            Optional.of(dirObjIds));
+    // get abs path
+    Path path =
+        absolutePathForObjectIDs.get(containerKeyInfo.getParentId());
+    String keyName = null;
+    // If it is directly under the bucket
+    if (path.toString().equals(OM_KEY_PREFIX)) {
+      keyName = path + containerKeyInfo.getKeyName();
+    } else {
+      keyName = path + OM_KEY_PREFIX + containerKeyInfo.getKeyName();
+    }
+    keyArgsBuilder.setKeyName(keyName);
   }
 
   public Map<Long, Path> getAbsolutePathForObjectIDs(
