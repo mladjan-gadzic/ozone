@@ -18,7 +18,6 @@
 
 package org.apache.hadoop.ozone.debug;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import org.apache.hadoop.hdds.cli.SubcommandWithParent;
@@ -28,7 +27,6 @@ import org.apache.hadoop.hdds.utils.db.DBDefinition;
 import org.apache.hadoop.hdds.utils.db.managed.ManagedRocksDB;
 import org.apache.hadoop.hdds.utils.db.managed.ManagedRocksIterator;
 import org.apache.hadoop.ozone.OzoneConsts;
-import org.apache.hadoop.ozone.om.helpers.OmDirectoryInfo;
 import org.apache.hadoop.ozone.om.helpers.OmKeyInfo;
 import org.apache.hadoop.ozone.om.helpers.OmKeyLocationInfoGroup;
 import org.kohsuke.MetaInfServices;
@@ -38,6 +36,7 @@ import org.rocksdb.RocksDBException;
 import picocli.CommandLine;
 
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -64,6 +63,9 @@ public class ContainerKeyScanner implements Callable<Void>,
   public static final String FILE_TABLE = "fileTable";
   public static final String KEY_TABLE = "keyTable";
 
+  @CommandLine.Spec
+  private static CommandLine.Model.CommandSpec spec;
+
   @CommandLine.ParentCommand
   private RDBParser parent;
 
@@ -77,10 +79,8 @@ public class ContainerKeyScanner implements Callable<Void>,
 
   @Override
   public Void call() throws Exception {
-    String dbPath = parent.getDbPath();
-
     ContainerKeyInfoWrapper containerKeyInfoWrapper =
-        scanDBForContainerKeys(dbPath);
+        scanDBForContainerKeys(parent.getDbPath());
 
     printOutput(containerKeyInfoWrapper);
 
@@ -90,6 +90,14 @@ public class ContainerKeyScanner implements Callable<Void>,
   @Override
   public Class<?> getParentType() {
     return RDBParser.class;
+  }
+
+  private static PrintWriter err() {
+    return spec.commandLine().getErr();
+  }
+
+  private static PrintWriter out() {
+    return spec.commandLine().getOut();
   }
 
   public ContainerKeyInfoWrapper scanDBForContainerKeys(String dbPath,
@@ -184,64 +192,16 @@ public class ContainerKeyScanner implements Callable<Void>,
     return keysProcessed;
   }
 
-  public Map<String, OmDirectoryInfo> processDirectoryTable(String dbPath)
-      throws IOException, RocksDBException {
-    List<ColumnFamilyDescriptor> columnFamilyDescriptors =
-        RocksDBUtils.getColumnFamilyDescriptors(dbPath);
-    final List<ColumnFamilyHandle> columnFamilyHandles = new ArrayList<>();
-
-    try (ManagedRocksDB db = ManagedRocksDB.openReadOnly(dbPath,
-        columnFamilyDescriptors, columnFamilyHandles)) {
-      dbPath = removeTrailingSlashIfNeeded(dbPath);
-      DBDefinition dbDefinition = DBDefinitionFactory.getDefinition(
-          Paths.get(dbPath), new OzoneConfiguration());
-      if (dbDefinition == null) {
-        throw new IllegalStateException("Incorrect DB Path");
-      }
-
-      Map<String, OmDirectoryInfo> omDirectoryInfos = new HashMap<>();
-      String tableName = "directoryTable";
-      DBColumnFamilyDefinition<?, ?> columnFamilyDefinition =
-          dbDefinition.getColumnFamily(tableName);
-      if (columnFamilyDefinition == null) {
-        throw new IllegalStateException(
-            "Table with name" + tableName + " not found");
-      }
-
-      ColumnFamilyHandle columnFamilyHandle = getColumnFamilyHandle(
-          columnFamilyDefinition.getName().getBytes(UTF_8),
-          columnFamilyHandles);
-      if (columnFamilyHandle == null) {
-        throw new IllegalStateException("columnFamilyHandle is null");
-      }
-
-      try (ManagedRocksIterator iterator = new ManagedRocksIterator(
-          db.get().newIterator(columnFamilyHandle))) {
-        iterator.get().seekToFirst();
-        while (iterator.get().isValid()) {
-          String key = new String(iterator.get().key(), UTF_8);
-          OmDirectoryInfo value =
-              ((OmDirectoryInfo) columnFamilyDefinition.getValueCodec()
-                  .fromPersistedFormat(iterator.get().value()));
-          omDirectoryInfos.put(key, value);
-          iterator.get().next();
-        }
-      }
-      return omDirectoryInfos;
-    }
-  }
-
-  @VisibleForTesting
-  public ContainerKeyInfoWrapper scanDBForContainerKeys(String dbPath)
+  private ContainerKeyInfoWrapper scanDBForContainerKeys(String dbPath)
       throws RocksDBException, IOException {
     List<ContainerKeyInfo> containerKeyInfos = new ArrayList<>();
 
     List<ColumnFamilyDescriptor> columnFamilyDescriptors =
-        RocksDBUtils.getColumnFamilyDescriptors(parent.getDbPath());
+        RocksDBUtils.getColumnFamilyDescriptors(dbPath);
     final List<ColumnFamilyHandle> columnFamilyHandles = new ArrayList<>();
     long keysProcessed = 0;
 
-    try (ManagedRocksDB db = ManagedRocksDB.openReadOnly(parent.getDbPath(),
+    try (ManagedRocksDB db = ManagedRocksDB.openReadOnly(dbPath,
         columnFamilyDescriptors, columnFamilyHandles)) {
       dbPath = removeTrailingSlashIfNeeded(dbPath);
       DBDefinition dbDefinition = DBDefinitionFactory.getDefinition(
@@ -260,12 +220,11 @@ public class ContainerKeyScanner implements Callable<Void>,
     return new ContainerKeyInfoWrapper(keysProcessed, containerKeyInfos);
   }
 
-  @VisibleForTesting
-  public long processTable(DBDefinition dbDefinition,
-                           List<ColumnFamilyHandle> columnFamilyHandles,
-                           ManagedRocksDB db,
-                           List<ContainerKeyInfo> containerKeyInfos,
-                           String tableName)
+  private long processTable(DBDefinition dbDefinition,
+                            List<ColumnFamilyHandle> columnFamilyHandles,
+                            ManagedRocksDB db,
+                            List<ContainerKeyInfo> containerKeyInfos,
+                            String tableName)
       throws IOException {
     long keysProcessed = 0;
     DBColumnFamilyDefinition<?, ?> columnFamilyDefinition =
@@ -325,8 +284,7 @@ public class ContainerKeyScanner implements Callable<Void>,
   }
 
 
-  @VisibleForTesting
-  public ColumnFamilyHandle getColumnFamilyHandle(
+  private ColumnFamilyHandle getColumnFamilyHandle(
       byte[] name, List<ColumnFamilyHandle> columnFamilyHandles) {
     return columnFamilyHandles
         .stream()
@@ -349,15 +307,16 @@ public class ContainerKeyScanner implements Callable<Void>,
     return dbPath;
   }
 
-  @VisibleForTesting
-  public void printOutput(ContainerKeyInfoWrapper containerKeyInfoWrapper) {
+  private void printOutput(ContainerKeyInfoWrapper containerKeyInfoWrapper) {
     List<ContainerKeyInfo> containerKeyInfos =
         containerKeyInfoWrapper.getContainerKeyInfos();
     if (containerKeyInfos.isEmpty()) {
-      System.out.println("No keys were found for container IDs: " +
-          containerIds);
-      System.out.println(
-          "Keys processed: " + containerKeyInfoWrapper.getKeysProcessed());
+      try (PrintWriter out = out()) {
+        out.println("No keys were found for container IDs: " +
+            containerIds);
+        out.println(
+            "Keys processed: " + containerKeyInfoWrapper.getKeysProcessed());
+      }
       return;
     }
 
@@ -378,16 +337,9 @@ public class ContainerKeyScanner implements Callable<Void>,
     String prettyJson = gson.toJson(
         new ContainerKeyInfoResponse(containerKeyInfoWrapper.getKeysProcessed(),
             infoMap));
-    System.out.println(prettyJson);
+    try (PrintWriter out = out()) {
+      out.println(prettyJson);
+    }
   }
 
-  @VisibleForTesting
-  public void setContainerIds(Set<Long> containerIds) {
-    this.containerIds = containerIds;
-  }
-
-  @VisibleForTesting
-  public Set<Long> getContainerIds() {
-    return containerIds;
-  }
 }
