@@ -590,14 +590,10 @@ public final class OMRequestTestUtils {
    * Create OmKeyInfo for LEGACY/OBS bucket.
    */
   @SuppressWarnings("parameterNumber")
-  private static OmKeyInfo createOmKeyInfo(
-      String volumeName, String bucketName,
-      String keyName,
-      HddsProtos.ReplicationType replicationType,
-      HddsProtos.ReplicationFactor replicationFactor,
-      long objectID,
-      long creationTime, long version,
-      boolean isMultipartKey) {
+  private static OmKeyInfo createOmKeyInfo(String volumeName, String bucketName,
+      String keyName, HddsProtos.ReplicationType replicationType,
+      HddsProtos.ReplicationFactor replicationFactor, long objectID,
+      long creationTime, long version, boolean isMultipartKey) {
     return new OmKeyInfo.Builder()
         .setVolumeName(volumeName)
         .setBucketName(bucketName)
