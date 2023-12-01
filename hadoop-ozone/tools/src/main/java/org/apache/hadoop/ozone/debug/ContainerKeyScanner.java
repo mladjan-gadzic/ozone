@@ -21,7 +21,6 @@ package org.apache.hadoop.ozone.debug;
 import com.google.common.collect.Sets;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.hdds.cli.SubcommandWithParent;
 import org.apache.hadoop.hdds.conf.OzoneConfiguration;
@@ -177,7 +176,7 @@ public class ContainerKeyScanner implements Callable<Void>,
     return spec.commandLine().getOut();
   }
 
-  @SuppressFBWarnings("DMI_HARDCODED_ABSOLUTE_FILENAME")
+  @SuppressWarnings("DMI_HARDCODED_ABSOLUTE_FILENAME")
   public Map<Long, Path> getAbsolutePathForObjectIDs(
       long bucketId, String prefix, Optional<Set<Long>> dirObjIds) {
     // Root of a bucket would always have the
