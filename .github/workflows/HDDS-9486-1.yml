@@ -1,17 +1,17 @@
-name: HDDS-8089-1
+name: HDDS-9484-1
 on:
   schedule:
     - cron: '*/30 * * * *'
 env:
   MAVEN_OPTS: -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.class=standard -Dmaven.wagon.http.retryHandler.count=3
 jobs:
-  HDDS-8089-1:
-    name: HDDS-8089-1
+  HDDS-9484-1:
+    name: HDDS-9484-1
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
         with:
-          ref: HDDS-8089-1
+          ref: HDDS-9484-1
       - name: Cache for maven dependencies
         uses: actions/cache@v2
         with:
@@ -22,7 +22,7 @@ jobs:
             maven-repo-${{ hashFiles('**/pom.xml') }}
             maven-repo-
       - name: Execute tests
-        run: hadoop-ozone/dev-support/checks/integration.sh -Dtest=TestOmSnapshot
+        run: hadoop-ozone/dev-support/checks/integration.sh -Dtest=TestSnapshotBackgroundServices
         env:
           ITERATIONS: 20
       - name: Summary of failures
@@ -32,7 +32,7 @@ jobs:
         uses: actions/upload-artifact@v2
         if: always()
         with:
-          name: HDDS-8089-1
+          name: HDDS-9484-1
           path: target/integration
       - name: Delete temporary build artifacts before caching
         run: |
